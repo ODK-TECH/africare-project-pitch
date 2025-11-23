@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Africare - Interactive Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 300px;
+            max-height: 350px;
+            margin: 1.5rem auto 0;
+        }
+        @media (min-width: 640px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .page-content {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-link {
+            @apply px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-700 border-b-2 border-transparent;
+        }
+        .nav-link.active {
+            @apply border-teal-600 text-teal-700 bg-teal-50;
+        }
+        .sub-nav-link {
+            @apply px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-200 border-2 border-transparent;
+        }
+        .sub-nav-link.active {
+            @apply bg-white text-teal-700 border-slate-300 shadow-sm;
+        }
+        .solution-content {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <!-- 
+        Chosen Palette: Tailwind Teal (accent), Amber (secondary accent), and Slate (text/backgrounds)
+        Application Structure Plan: A single-page application (SPA) with a top navigation bar. The nav links ("Home", "Problem", "Solution", "Impact", "Roadmap") control the visibility of corresponding content sections. This is superior to a linear report as it allows users to non-linearly explore the topics they are most interested in. The "Solution" section uses further sub-navigation (tabs) to break down the product's features, 'how it works', and value proposition, which is much more digestible for a user than a single, long text block.
+        Visualization & Content Choices:
+        - Report Info: Problem Stat (1:5000) -> Goal: Inform/Compare -> Viz: Chart.js Bar Chart. Interaction: Rendered on page load. Justification: A bar chart provides a stark, immediate visual comparison of the doctor-to-patient ratio, which is more impactful than text alone.
+        - Report Info: Target Audience -> Goal: Inform -> Viz: HTML text blocks. Interaction: JS-powered buttons ("Rural", "Low Literacy") to toggle descriptive text. Justification: Makes the user an active participant in revealing the information, increasing engagement.
+        - Report Info: "How It Works" Diagram -> Goal: Organize/Inform -> Viz: HTML/CSS Flexbox diagram (3 cards + arrows). Interaction: None. Justification: Replaces the static image from the PDF, adhering to the NO SVG/Mermaid rule, while still clearly showing the process flow.
+        - Report Info: Social Impact SDGs -> Goal: Organize/Inform -> Viz: HTML/CSS Grid of cards. Interaction: Hover effects. Justification: A clean, modern, and scannable layout to present the four key impact areas.
+        - Report Info: Future Vision -> Goal: Inform -> Viz: HTML/CSS timeline-style layout. Interaction: None. Justification: Clearly presents the two-phase roadmap.
+        CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- UPDATED LOGO SECTION -->
+                <div class="flex-shrink-0 flex items-center">
+                    <!-- Placeholder for the logo. Ideally, rename your uploaded file to 'logo.jpg' -->
+                    <img src="logo.jpg" alt="Africare Logo" class="h-10 w-auto mr-3 rounded-full border border-teal-100 shadow-sm" onerror="this.style.display='none'">
+                    <span class="text-2xl font-bold text-teal-700">Africare</span>
+                </div>
+                <div class="hidden sm:ml-6 sm:flex sm:space-x-4">
+                    <a href="#" class="nav-link active" data-page="page-home">Home</a>
+                    <a href="#" class="nav-link" data-page="page-problem">The Problem</a>
+                    <a href="#" class="nav-link" data-page="page-solution">The Solution</a>
+                    <a href="#" class="nav-link" data-page="page-impact">Impact</a>
+                    <a href="#" class="nav-link" data-page="page-roadmap">Roadmap</a>
+                </div>
+                <div class="sm:hidden">
+                    <select id="mobile-nav" class="block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                        <option value="page-home">Home</option>
+                        <option value="page-problem">The Problem</option>
+                        <option value="page-solution">The Solution</option>
+                        <option value="page-impact">Impact</option>
+                        <option value="page-roadmap">Roadmap</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ===== HOME SECTION ===== -->
+        <section id="page-home" class="page-content">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-6 md:p-10">
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-teal-800">Bridging the Health Information Gap</h1>
+                    <p class="mt-4 text-lg text-slate-600">This interactive report explores Africare, an innovative AI-powered solution designed to address critical healthcare challenges in rural African communities. Navigate through the sections to understand the problem we're solving, our unique solution, its social impact, and our vision for the future.</p>
+                </div>
+                <div class="bg-slate-50 p-6 md:p-10 border-t border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-700">About the Project</h2>
+                    <p class="mt-3 text-slate-600">Presented at DataHER AFRICA, this project outlines a new approach to healthcare accessibility. By leveraging AI technology that works offline and understands local languages, we aim to empower individuals with reliable, immediate health information, reducing dependency on an over-stretched medical system and combating dangerous misinformation.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== PROBLEM SECTION ===== -->
+        <section id="page-problem" class="page-content hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-6 md:p-10">
+                    <h1 class="text-3xl md:text-4xl font-bold text-teal-800">A Crisis of Access</h1>
+                    <p class="mt-4 text-lg text-slate-600">The core challenge in many rural African communities is a severe scarcity of professional medical advice. This information vacuum leads to reliance on unreliable sources and prevents timely care. This section visualizes the scale of the problem and identifies the key populations affected.</p>
+
+                    <h2 class="mt-8 text-2xl font-bold text-center text-slate-700">Severe Healthcare Shortage</h2>
+                    <p class="text-center text-slate-600 mt-2">The doctor-to-patient ratio is stark. Based on DHS data, the reality is:</p>
+                    
+                    <div class="chart-container">
+                        <canvas id="problemChart"></canvas>
+                    </div>
+
+                    <h2 class="mt-12 text-2xl font-bold text-center text-slate-700">Who Is Most Affected?</h2>
+                    <p class="text-center text-slate-600 mt-2">Our solution is targeted at the most vulnerable populations. Click to learn more.</p>
+                    
+                    <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                        <button class="audience-btn px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-75" data-target="audience-rural">
+                            Rural Communities
+                        </button>
+                        <button class="audience-btn px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" data-target="audience-literacy">
+                            Individuals with Low Literacy
+                        </button>
+                    </div>
+
+                    <div id="audience-display" class="mt-6 p-6 bg-slate-50 rounded-lg min-h-[100px] border border-slate-200">
+                        <p class="text-slate-500 text-center">Select a group to see the details.</p>
+                    </div>
+
+                    <div id="audience-rural" class="audience-text hidden">
+                        <h3 class="font-bold text-lg text-amber-700">People in Rural or Underserved Communities</h3>
+                        <p class="mt-2 text-slate-600">This group has limited or non-existent physical access to clinics and doctors. Long distances, lack of transport, and high costs create a barrier to receiving timely medical advice.</p>
+                    </div>
+
+                    <div id="audience-literacy" class="audience-text hidden">
+                        <h3 class="font-bold text-lg text-teal-700">Individuals with Low Literacy</h3>
+                        <p class="mt-2 text-slate-600">Even when information is available online, it's often in English or French and text-heavy. Our local-language, voice-capable (future) support is designed specifically to include this often-overlooked group.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== SOLUTION SECTION ===== -->
+        <section id="page-solution" class="page-content hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-6 md:p-10">
+                    <h1 class="text-3xl md:text-4xl font-bold text-teal-800">Our Solution: Africare</h1>
+                    <p class="mt-4 text-lg text-slate-600">Africare is an AI-powered community health chatbot built from the ground up to meet the unique challenges of rural Africa. It's not just another app; it's a lifeline. Explore the components of our solution below.</p>
+
+                    <div class="my-8 bg-slate-100 p-4 rounded-lg flex flex-col sm:flex-row justify-center gap-2">
+                        <button class="solution-nav-link active" data-target="solution-overview">Overview</button>
+                        <button class="solution-nav-link" data-target="solution-features">Key Features</button>
+                        <button class="solution-nav-link" data-target="solution-howitworks">How It Works</button>
+                    </div>
+
+                    <div id="solution-overview" class="solution-content">
+                        <h2 class="text-2xl font-bold text-slate-700">What is Africare?</h2>
+                        <p class="mt-3 text-slate-600">Africare is an intelligent chatbot that provides immediate, reliable health advice. It is designed to function in the real-world conditions of rural communities, bringing the knowledge of a doctor to a user's phone, anytime, anywhere.</p>
+                        <img src="https://placehold.co/1000x500/E0F2F1/0D9488?text=Africare+App+Mockup" alt="Africare app mockup" class="mt-6 rounded-lg shadow-md w-full object-cover" onerror="this.src='https://placehold.co/1000x500/E0F2F1/0D9488?text=App+Mockup+Placeholder'">
+                    </div>
+
+                    <div id="solution-features" class="solution-content hidden">
+                        <h2 class="text-2xl font-bold text-slate-700">Why It's Different</h2>
+                        <p class="mt-3 text-slate-600">Our features directly address the primary barriers to healthcare access:</p>
+                        <ul class="mt-6 space-y-4">
+                            <li class="flex items-start gap-4">
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
+                                <div>
+                                    <h3 class="font-semibold text-lg">Offline Operation</h3>
+                                    <p class="text-slate-600">Ensures help is available even without a stable or affordable internet connection.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-4">
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
+                                <div>
+                                    <h3 class="font-semibold text-lg">Local Language Support</h3>
+                                    <p class="text-slate-600">Breaks down language barriers that prevent people from understanding complex medical advice.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-4">
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
+                                <div>
+                                    <h3 class="font-semibold text-lg">Reduces Misinformation</h3>
+                                    <p class="text-slate-600">Provides medically verified answers, combating dangerous self-medication and rumors.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-4">
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
+                                <div>
+                                    <h3 class="font-semibold text-lg">Empowers Individuals</h3>
+                                    <p class="text-slate-600">Allows people to make safer, more informed health decisions for themselves and their families.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div id="solution-howitworks" class="solution-content hidden">
+                        <h2 class="text-2xl font-bold text-slate-700">A Simple 3-Step Process</h2>
+                        <p class="mt-3 text-slate-600">The technology is complex, but the user experience is simple and intuitive.</p>
+                        <div class="mt-8 flex flex-col md:flex-row items-center justify-center gap-4">
+                            
+                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-teal-500 text-center">
+                                <div class="text-4xl text-teal-600">1</div>
+                                <h3 class="mt-3 text-xl font-bold">Ask Question</h3>
+                                <p class="mt-2 text-slate-600">Users initiate the interaction by asking their health question in their preferred language.</p>
+                            </div>
+
+                            <div class="text-4xl text-slate-400 mx-4 hidden md:block">&rarr;</div>
+                            <div class="text-4xl text-slate-400 my-4 md:hidden">&darr;</div>
+
+                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-amber-500 text-center">
+                                <div class="text-4xl text-amber-600">2</div>
+                                <h3 class="mt-3 text-xl font-bold">Verify</h3>
+                                <p class="mt-2 text-slate-600">Our AI analyzes the query against a dedicated database of verified medical protocols and facts.</p>
+                            </div>
+
+                            <div class="text-4xl text-slate-400 mx-4 hidden md:block">&rarr;</div>
+                            <div class="text-4xl text-slate-400 my-4 md:hidden">&darr;</div>
+
+                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-teal-500 text-center">
+                                <div class="text-4xl text-teal-600">3</div>
+                                <h3 class="mt-3 text-xl font-bold">Instant Answer</h3>
+                                <p class="mt-2 text-slate-600">Users receive an immediate, clear response, providing essential health insights when needed most.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== IMPACT SECTION ===== -->
+        <section id="page-impact" class="page-content hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-6 md:p-10">
+                    <h1 class="text-3xl md:text-4xl font-bold text-teal-800">Social Impact</h1>
+                    <p class="mt-4 text-lg text-slate-600">Africare is more than a tool; it's an engine for social change. Our work directly contributes to several UN Sustainable Development Goals (SDGs) by creating a more equitable and healthy future for underserved communities.</p>
+
+                    <div class="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-blue-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-blue-700">SDG 3: Good Health & Well-being</h3>
+                            <p class="mt-2 text-slate-600">By providing accessible health information, we directly contribute to better health outcomes and well-being.</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-red-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-red-700">SDG 4: Quality Education</h3>
+                            <p class="mt-2 text-slate-600">We educate individuals about their health,
+                            empowering them with knowledge.</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-purple-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-purple-700">SDG 10: Reduced Inequalities</h3>
+                            <p class="mt-2 text-slate-600">Our solution democratizes access to health advice, reducing a key inequality gap.</p>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-orange-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-orange-700">SDG 9: Industry & Innovation</h3>
+                            <p class="mt-2 text-slate-600">We are building innovative, accessible, and resilient infrastructure for community health.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== ROADMAP SECTION ===== -->
+        <section id="page-roadmap" class="page-content hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-6 md:p-10">
+                    <h1 class="text-3xl md:text-4xl font-bold text-teal-800">Future Vision</h1>
+                    <p class="mt-4 text-lg text-slate-600">This project is the first step. Our vision is to create a truly universal platform for health information. The next phases of our roadmap focus on maximum accessibility, ensuring we can reach every individual, regardless of the technology they own.</p>
+                    
+                    <div class="mt-10 max-w-2xl mx-auto">
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <div class="flex-1 text-center p-6 bg-slate-50 rounded-lg shadow-md border-b-4 border-amber-500">
+                                <div class_="text-lg font-semibold text-slate-500">Phase 1</div>
+                                <h3 class="text-2xl font-bold text-amber-700 mt-2">SMS Integration and Activation of offline mode</h3>
+                                <p class="mt-3 text-slate-600">Expand the service to work over basic SMS and offline mode will be activated, making it accessible to users with non-smartphones (feature phones) and without data.</p>
+                            </div>
+                            <div class="flex-1 text-center p-6 bg-slate-50 rounded-lg shadow-md border-b-4 border-teal-500">
+                                <div class="text-lg font-semibold text-slate-500">Phase 2</div>
+                                <h3 class="text-2xl font-bold text-teal-700 mt-2">Voice-to-Text and Text-to-Voice</h3>
+                                <p class="mt-3 text-slate-600">Implement full voice recognition and text-to-speech to provide full accessibility for individuals with low literacy or visual impairments.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="text-center py-8 mt-10">
+        <p class="text-slate-500 text-sm">Africare Interactive Report | DataHER AFRICA | November 2025</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartData = {
+                labels: ['Doctors', 'Population'],
+                datasets: [{
+                    label: 'Ratio',
+                    data: [1, 5000],
+                    backgroundColor: [
+                        '#0d9488', // teal-600
+                        '#f59e0b'  // amber-500
+                    ],
+                    borderColor: [
+                        '#0f766e', // teal-700
+                        '#d97706'  // amber-600
+                    ],
+                    borderWidth: 1
+                }]
+            };
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        type: 'logarithmic',
+                        ticks: {
+                            color: '#475569'
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#475569'
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toLocaleString();
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            };
+
+            function renderProblemChart() {
+                const ctx = document.getElementById('problemChart');
+                if (!ctx) return;
+
+                const existingChart = Chart.getChart(ctx);
+                if (existingChart) {
+                    existingChart.destroy();
+                }
+
+                new Chart(ctx.getContext('2d'), {
+                    type: 'bar',
+                    data: chartData,
+                    options: chartOptions
+                });
+            }
+
+            function setupNavigation() {
+                const navLinks = document.querySelectorAll('.nav-link');
+                const mobileNav = document.getElementById('mobile-nav');
+
+                function showPage(pageId) {
+                    document.querySelectorAll('.page-content').forEach(page => {
+                        page.classList.add('hidden');
+                    });
+                    const activePage = document.getElementById(pageId);
+                    if (activePage) {
+                        activePage.classList.remove('hidden');
+                    }
+
+                    if (pageId === 'page-problem') {
+                        renderProblemChart();
+                    }
+                    
+                    navLinks.forEach(link => {
+                        if (link.dataset.page === pageId) {
+                            link.classList.add('active');
+                        } else {
+                            link.classList.remove('active');
+                        }
+                    });
+                    
+                    if (mobileNav.value !== pageId) {
+                        mobileNav.value = pageId;
+                    }
+                }
+
+                navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const pageId = e.currentTarget.dataset.page;
+                        showPage(pageId);
+                    });
+                });
+                
+                mobileNav.addEventListener('change', (e) => {
+                    showPage(e.target.value);
+                });
+            }
+            
+            function setupProblemInteractivity() {
+                const audienceDisplay = document.getElementById('audience-display');
+                const audienceButtons = document.querySelectorAll('.audience-btn');
+                
+                audienceButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const targetId = button.dataset.target;
+                        const targetContent = document.getElementById(targetId);
+                        if (targetContent) {
+                            audienceDisplay.innerHTML = targetContent.innerHTML;
+                        }
+                    });
+                });
+            }
+            
+            function setupSolutionInteractivity() {
+                const solutionLinks = document.querySelectorAll('.solution-nav-link');
+                
+                solutionLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const targetId = e.currentTarget.dataset.target;
+
+                        document.querySelectorAll('.solution-content').forEach(content => {
+                            content.classList.add('hidden');
+                        });
+                        
+                        const activeContent = document.getElementById(targetId);
+                        if (activeContent) {
+                            activeContent.classList.remove('hidden');
+                        }
+
+                        solutionLinks.forEach(l => l.classList.remove('active'));
+                        e.currentTarget.classList.add('active');
+                    });
+                });
+            }
+
+            function init() {
+                setupNavigation();
+                setupProblemInteractivity();
+                setupSolutionInteractivity();
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
