@@ -14,7 +14,7 @@ Africare is an AI-powered community health chatbot designed to tackle the critic
 
 - Language Barriers: Most health information is in English/French, excluding local dialect speakers.
 
-##💡 The Solution
+## 💡 The Solution
 
 Africare is an intelligent chatbot that:
 
