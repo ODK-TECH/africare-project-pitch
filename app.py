@@ -1,24 +1,44 @@
-# africare_streamlit_llm.py
+# africare_rag_streamlit.py
 import os
 import time
 import json
-from datetime import datetime
 import requests
+from pathlib import Path
+from typing import List, Tuple
 import streamlit as st
 
-# ---------------------------
-# Page config
-# ---------------------------
+# optional imports (embedding + vector store)
+try:
+    from sentence_transformers import SentenceTransformer
+    import faiss
+    EMBEDDINGS_AVAILABLE = True
+except Exception:
+    EMBEDDINGS_AVAILABLE = False
+
+# text extraction from PDFs
+try:
+    import PyPDF2
+    PDF_LIB = True
+except Exception:
+    PDF_LIB = False
+
+# sklearn fallback
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.neighbors import NearestNeighbors
+
+# -------------------------
+# PAGE CONFIG
+# -------------------------
 st.set_page_config(
-    page_title="Africare - AI Health Assistant",
-    page_icon="africare-log.jpg",
+    page_title="Africare - RAG Health Assistant",
+    page_icon="africare-logo.jpg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ---------------------------
-# Helper: Theme CSS
-# ---------------------------
+# -------------------------
+# THEME CSS
+# -------------------------
 def apply_theme(theme):
     if theme == "Light":
         bg = "#f8f9fa"
@@ -39,227 +59,363 @@ def apply_theme(theme):
     .stChatMessage[data-role='user'] {{ background-color: {bubble_user}; }}
     .stChatMessage[data-role='assistant'] {{ background-color: {bubble_bot}; }}
     .stButton>button {{ background-color: #0F766E; color: white; border-radius: 10px; border: none; padding: 9px 18px; }}
+    .sidebar .stImage img {{ border-radius: 8px; }}
     </style>
     """, unsafe_allow_html=True)
 
-# ---------------------------
-# Languages & Translations
-# ---------------------------
-LANGUAGES = {
-    "en": "English",
-    "ak": "Akan",
-    "sw": "Swahili",
-    "ga": "Ga",
-    "ew": "Ewe",
-    "fa": "Fante"
-}
-
+# -------------------------
+# LANGUAGES / TRANSLATIONS
+# -------------------------
+LANGUAGES = {"en": "English", "ak": "Akan", "sw": "Swahili", "ga": "Ga", "ew": "Ewe", "fa": "Fante"}
 TRANSLATIONS = {
-    "en": {
-        "welcome": "Hello! I'm Africare AI.",
-        "subtitle": "Ask me anything about health.",
-        "offline": "Offline Mode",
-        "online": "Online Mode",
-        "disclaimer": "This is an AI assistant. For emergencies, contact a hospital immediately.",
-        "clear": "Clear History"
-    },
-    "sw": {
-        "welcome": "Hujambo! Mimi ni Africare AI.",
-        "subtitle": "Niulize chochote kuhusu afya.",
-        "offline": "Hali ya Nje ya Mtandao",
-        "online": "Mtandaoni",
-        "disclaimer": "Hii ni AI. Kwa dharura, tembelea hospitali.",
-        "clear": "Futa Mawasiliano"
-    },
-    "ak": {
-        "welcome": "Akwaaba! Me ne Africare AI.",
-        "subtitle": "Bisa me biribiara fa apɔwmuden ho.",
-        "offline": "Offline Mode",
-        "online": "Wɔ Intanɛt So",
-        "disclaimer": "Sɛ woyare pa ara a, kɔ asɔpiti.",
-        "clear": "Pepa Abesua"
-    }
+    "en": {"welcome": "Hello! I'm Africare AI.", "subtitle": "Ask me anything about health.",
+           "offline": "Offline Mode", "online": "Online Mode",
+           "disclaimer": "This is an AI assistant. For emergencies, contact a hospital immediately.", "clear": "Clear History"},
+    "sw": {"welcome": "Hujambo! Mimi ni Africare AI.", "subtitle": "Niulize chochote kuhusu afya.",
+           "offline": "Hali ya Nje ya Mtandao", "online": "Mtandaoni",
+           "disclaimer": "Hii ni AI. Kwa dharura, tembelea hospitali.", "clear": "Futa Mawasiliano"},
+    "ak": {"welcome": "Akwaaba! Me ne Africare AI.", "subtitle": "Bisa me biribiara fa apɔwmuden ho.",
+           "offline": "Offline Mode", "online": "Wɔ Intanɛt So",
+           "disclaimer": "Sɛ woyare pa ara a, kɔ asɔpiti.", "clear": "Pepa Abesua"}
 }
 
-# ---------------------------
-# Knowledge base (expanded)
-# ---------------------------
-KNOWLEDGE_BASE = {
+# -------------------------
+# SIMPLE HEALTH DATASET (fallback & KB)
+# -------------------------
+HEALTH_DATASET = {
     "malaria": {
-        "en": "Malaria is caused by mosquito-borne parasites. Symptoms include fever, chills, vomiting, and headaches.",
-        "sw": "Malaria inasababishwa na mbu. Dalili ni homa, baridi, na maumivu ya kichwa.",
-        "ak": "Malaria yɛ yareɛ a mmoawa de ba. Nsɛnkyerɛnne ne huraeɛ ne awɔ."
+        "name": "Malaria",
+        "symptoms": [
+            "High fever (often above 38°C / 100.4°F)",
+            "Chills and sweating",
+            "Headache",
+            "Nausea and vomiting",
+            "Muscle pain and fatigue"
+        ],
+        "prevention": [
+            "Sleep under insecticide-treated mosquito nets",
+            "Use indoor residual spraying",
+            "Take antimalarial medication as prescribed",
+            "Eliminate standing water where mosquitoes breed",
+            "Wear long-sleeved clothing during dawn and dusk"
+        ],
+        "treatment": "Seek immediate medical care. First-line treatment includes artemisinin-based combination therapies (ACTs). Never self-medicate.",
+        "source": "WHO Global Health Observatory – African Region"
     },
-    "cholera": {
-        "en": "Cholera spreads through contaminated water. It causes severe diarrhea and dehydration.",
-        "sw": "Kipindupindu husababishwa na maji machafu. Dalili ni kuharisha sana.",
-        "ak": "Cholera fi nsuo a ɛnni hɔ te sɛɛ. Ema onipa twitwaa nsu."
-    },
-    "typhoid": {
-        "en": "Typhoid is caused by Salmonella bacteria. Symptoms: fever, weakness, stomach pain.",
-        "sw": "Typhoid inasababishwa na bakteria. Dalili ni homa, uchovu, maumivu ya tumbo.",
-        "ak": "Typhoid yɛ bacteria yareɛ. Nsɛnkyerɛnne: huraeɛ, ahohuru, yaw wɔ yafunu mu."
-    },
-    "diabetes": {
-        "en": "Diabetes affects how your body uses sugar. Symptoms include thirst, frequent urination, and fatigue.",
-        "sw": "Kisukari huathiri matumizi ya sukari. Dalili: kiu, kukojoa mara nyingi.",
-        "ak": "Diabetes yɛ mogya sukuru nsesae. Nsɛnkyerɛnne ne sare ogya ne da ho dwo."
-    },
-    "pregnancy": {
-        "en": "Healthy pregnancy requires good nutrition and regular checkups.",
-        "sw": "Mimba yenye afya inahitaji lishe bora na uchunguzi wa mara kwa mara.",
-        "ak": "Mpa mu ho hia aduane pa ne asɛmpa mfitiase."
-    }
+    # ... (Add other dataset entries if desired; omitted here for brevity)
 }
 
-# ---------------------------
-# LLM Provider config (env vars)
-# ---------------------------
-# Provide your keys in environment variables:
-# OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-GROQ_KEY = os.environ.get("GROQ_API_KEY", "").strip()
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+# -------------------------
+# RAG: Load local WHO PDFs
+# -------------------------
+PDF_FOLDER = Path("who_pdfs")
+PDF_FOLDER.mkdir(exist_ok=True)
 
-# ---------------------------
-# Auto-detect online/offline
-# ---------------------------
-def check_internet(timeout=2):
-    """Quick connectivity probe. Returns True if internet seems available."""
-    test_urls = [
-        "https://api.openai.com/v1/models",  # OpenAI endpoint
-        "https://www.google.com",
-    ]
+def extract_text_from_pdf(pdf_path: Path) -> str:
+    """
+    Extracts text from a PDF using PyPDF2. If not available or fails, returns empty string.
+    """
+    if not PDF_LIB:
+        return ""
+    text_chunks = []
+    try:
+        with open(pdf_path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                try:
+                    text = page.extract_text()
+                    if text:
+                        text_chunks.append(text)
+                except Exception:
+                    continue
+    except Exception:
+        return ""
+    return "\n".join(text_chunks)
+
+def load_documents_from_pdfs(folder: Path) -> List[Tuple[str, str]]:
+    """
+    Returns a list of (doc_id, text) tuples from PDFs in folder.
+    doc_id will be the filename.
+    """
+    docs = []
+    for pdf_file in folder.glob("*.pdf"):
+        text = extract_text_from_pdf(pdf_file)
+        if text and len(text.strip())>50:
+            docs.append((pdf_file.name, text))
+    return docs
+
+# -------------------------
+# SPLIT TEXT INTO CHUNKS
+# -------------------------
+def chunk_text(text: str, max_chars: int = 1500, overlap: int = 200) -> List[str]:
+    """Simple character-based splitter that keeps overlap to preserve context."""
+    chunks = []
+    start = 0
+    L = len(text)
+    while start < L:
+        end = min(start + max_chars, L)
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        if end == L:
+            break
+        start = max(end - overlap, end)
+    return chunks
+
+# -------------------------
+# VECTOR INDEX BUILDERS / FALLBACK
+# -------------------------
+class RAGIndex:
+    def __init__(self, docs: List[Tuple[str,str]]):
+        """
+        docs: list of (doc_id, text)
+        builds either FAISS+sentence-transformers or TF-IDF+NearestNeighbors index
+        """
+        self.documents = []   # list of {"id":docid, "text": text, "chunk_id": id}
+        for doc_id, text in docs:
+            for i, chunk in enumerate(chunk_text(text)):
+                self.documents.append({"id": doc_id, "chunk_id": i, "text": chunk})
+
+        self.use_embeddings = EMBEDDINGS_AVAILABLE
+        if self.use_embeddings:
+            try:
+                self.model = SentenceTransformer("all-MiniLM-L6-v2")
+                texts = [d["text"] for d in self.documents]
+                self.embeddings = self.model.encode(texts, show_progress_bar=False, convert_to_numpy=True)
+                dim = self.embeddings.shape[1]
+                self.index = faiss.IndexFlatL2(dim)
+                self.index.add(self.embeddings)
+            except Exception:
+                # fallback to TF-IDF
+                self.use_embeddings = False
+
+        if not self.use_embeddings:
+            # TF-IDF fallback
+            self.vectorizer = TfidfVectorizer(stop_words="english", max_features=20000)
+            texts = [d["text"] for d in self.documents]
+            if texts:
+                self.doc_term = self.vectorizer.fit_transform(texts)
+                self.nn = NearestNeighbors(n_neighbors=5, metric="cosine").fit(self.doc_term)
+            else:
+                self.doc_term = None
+                self.nn = None
+
+    def retrieve(self, query: str, top_k: int = 4) -> List[dict]:
+        """
+        Returns top_k document chunks as list of dicts {"id","chunk_id","text","score"}
+        """
+        if len(self.documents) == 0:
+            return []
+
+        if self.use_embeddings:
+            q_emb = self.model.encode([query], convert_to_numpy=True)
+            dists, idxs = self.index.search(q_emb, top_k)
+            results = []
+            for dist, idx in zip(dists[0], idxs[0]):
+                if idx < len(self.documents):
+                    results.append({"id": self.documents[idx]["id"], "chunk_id": self.documents[idx]["chunk_id"], "text": self.documents[idx]["text"], "score": float(dist)})
+            return results
+        else:
+            if self.doc_term is None or self.nn is None:
+                return []
+            q_vec = self.vectorizer.transform([query])
+            dists, idxs = self.nn.kneighbors(q_vec, n_neighbors=min(top_k, len(self.documents)))
+            results = []
+            for dist_row, idx_row in zip(dists, idxs):
+                for dist, idx in zip(dist_row, idx_row):
+                    results.append({"id": self.documents[idx]["id"], "chunk_id": self.documents[idx]["chunk_id"], "text": self.documents[idx]["text"], "score": float(dist)})
+            # sort by ascending distance (better matches first)
+            results = sorted(results, key=lambda x: x["score"])
+            return results
+
+# -------------------------
+# Build (or cache) RAG index on startup
+# -------------------------
+if "rag_index" not in st.session_state:
+    docs = load_documents_from_pdfs(PDF_FOLDER)
+    st.session_state._who_pdf_files = [d[0] for d in docs]
+    if docs:
+        st.session_state.rag_index = RAGIndex(docs)
+        st.session_state.rag_ready = True
+    else:
+        st.session_state.rag_index = None
+        st.session_state.rag_ready = False
+
+# -------------------------
+# LLM PROVIDER ADAPTERS
+# -------------------------
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+GROQ_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GEMINI_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+
+def is_online(timeout=2):
+    test_urls = ["https://api.openai.com/v1/models", "https://www.google.com"]
     for url in test_urls:
         try:
             resp = requests.get(url, timeout=timeout)
-            if resp.status_code in (200, 401, 403):  # 401/403 could mean reachable but auth required
+            if resp.status_code in (200, 401, 403):
                 return True
         except Exception:
             continue
     return False
 
-# Cache detection in session_state to avoid repeated probes
+# cache internet detection
 if "internet_available" not in st.session_state:
-    st.session_state.internet_available = check_internet()
+    st.session_state.internet_available = is_online()
 
-# ---------------------------
-# LLM Adapter (tries providers in order)
-# ---------------------------
-def llm_call_openai(prompt, model="gpt-3.5-turbo"):
+def call_openai_chat(system_prompt: str, user_prompt: str, model="gpt-3.5-turbo"):
     if not OPENAI_KEY:
-        raise RuntimeError("OpenAI API key not set.")
+        raise RuntimeError("OPENAI key missing")
     try:
-        # Prefer using the official openai package if installed
         import openai
         openai.api_key = OPENAI_KEY
-        resp = openai.ChatCompletion.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=512,
-            temperature=0.2
-        )
+        messages = [{"role":"system","content": system_prompt}, {"role":"user","content": user_prompt}]
+        resp = openai.ChatCompletion.create(model=model, messages=messages, max_tokens=512, temperature=0.2)
         return resp.choices[0].message.content.strip()
-    except Exception:
-        # Fallback to HTTP call
+    except Exception as e:
+        # fallback to HTTP
         url = "https://api.openai.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 512,
-            "temperature": 0.2
-        }
-        r = requests.post(url, headers=headers, json=payload, timeout=15)
+        payload = {"model": model, "messages":[{"role":"system","content":system_prompt},{"role":"user","content":user_prompt}], "max_tokens":512, "temperature":0.2}
+        r = requests.post(url, headers=headers, json=payload, timeout=20)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"].strip()
 
-def llm_call_groq(prompt):
-    if not GROQ_KEY:
-        raise RuntimeError("Groq API key not set.")
-    # NOTE: this block is a placeholder — adapt endpoints per Groq docs when you have an account
-    url = "https://api.groq.cloud/v1"  # placeholder
-    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-    payload = {"prompt": prompt, "max_tokens": 512}
-    r = requests.post(url, headers=headers, json=payload, timeout=15)
-    r.raise_for_status()
-    # This parsing assumes Groq returns { "text": "..." } — adjust to actual response shape
-    data = r.json()
-    return data.get("text") or data.get("output") or json.dumps(data)
+def call_groq(...):
+    # Placeholder: user should implement with real Groq SDK/HTTP shape
+    raise NotImplementedError("Groq call not implemented here; provide endpoint & parsing.")
 
-def llm_call_gemini(prompt):
-    if not GEMINI_KEY:
-        raise RuntimeError("Gemini API key not set.")
-    # NOTE: this block is a placeholder — adapt to Google Gemini/PaLM API when available
-    url = "https://generativeapi.googleapis.com/v1beta2/models/text-bison-001:generate"  # example PaLM endpoint
-    headers = {"Authorization": f"Bearer {GEMINI_KEY}", "Content-Type": "application/json"}
-    payload = {"prompt": {"text": prompt}, "maxOutputTokens": 512}
-    r = requests.post(url, headers=headers, json=payload, timeout=15)
-    r.raise_for_status()
-    data = r.json()
-    # Try to extract text
-    if "candidates" in data and len(data["candidates"])>0:
-        return data["candidates"][0].get("content","").strip()
-    return json.dumps(data)
+def call_gemini(...):
+    # Placeholder: user should implement with real Gemini SDK/HTTP shape
+    raise NotImplementedError("Gemini call not implemented here; provide endpoint & parsing.")
 
-def generate_with_providers(prompt, providers_order):
-    """
-    Attempt providers in order. If all fail or no keys present, fall back to local KB responder.
-    providers_order: list of strings e.g. ["openai","groq","gemini"]
-    """
+def call_providers(system_prompt: str, augmented_prompt: str, providers_order: List[str]):
     errors = {}
     for p in providers_order:
         try:
             if p == "openai" and OPENAI_KEY:
-                return llm_call_openai(prompt)
+                return call_openai_chat(system_prompt, augmented_prompt)
             if p == "groq" and GROQ_KEY:
-                return llm_call_groq(prompt)
+                return call_groq(system_prompt, augmented_prompt)
             if p == "gemini" and GEMINI_KEY:
-                return llm_call_gemini(prompt)
+                return call_gemini(system_prompt, augmented_prompt)
         except Exception as e:
             errors[p] = str(e)
             continue
-    # fallback: KB + template
-    return fallback_kb_response(prompt)
+    # If none available or all errors: return None to indicate fallback
+    return None
 
-# ---------------------------
-# Fallback KB response (deterministic)
-# ---------------------------
-def fallback_kb_response(prompt, lang="en"):
-    """
-    If no LLM provider is available or offline, we return the best match
-    from the knowledge base + polite coaching message.
-    """
-    q = prompt.lower()
-    for k, contents in KNOWLEDGE_BASE.items():
-        if k in q:
-            kb_text = contents.get(lang, contents.get("en"))
-            return kb_text + "\n\n*(Response from local knowledge base — limited scope)*"
-    # No KB match: return helpful generic advice
-    return ("I couldn't find a specific entry in the offline knowledge base. "
-            "General advice: stay hydrated, rest, monitor symptoms, and seek in-person care if symptoms worsen.")
+# -------------------------
+# SYSTEM PROMPT (Verified health format)
+# -------------------------
+SYSTEM_PROMPT = """
+You are Africare — an African Health Assistant. ALWAYS format every health-related answer in this exact verified structure:
 
-# ---------------------------
-# Sidebar
-# ---------------------------
+[Condition Name]
+
+Symptoms:
+• symptom 1
+• symptom 2
+• symptom 3
+
+Prevention:
+• prevention tip 1
+• prevention tip 2
+
+Treatment:
+Clear, safe medical guidance including when to seek professional care. Do NOT encourage self-medication.
+
+Source: WHO / Africa CDC / CDC / National Health Service (choose most relevant if available)
+
+⚠️ Note: This is general health information. For diagnosis & treatment, consult a qualified healthcare provider.
+
+When relevant, prioritize and cite information from the provided WHO PDFs (local documents) in the 'Source' line. If you use local WHO PDFs, include the PDF filename(s) in the Source field.
+"""
+
+# -------------------------
+# Helper: Build augmented prompt using top retrieved docs
+# -------------------------
+def build_augmented_prompt(user_question: str, rag_index: RAGIndex, top_k:int=3, lang="en") -> Tuple[str, List[dict]]:
+    """
+    Returns (augmented_prompt, retrieved_docs_list)
+    """
+    retrieved = []
+    if rag_index and st.session_state.rag_ready:
+        retrieved = rag_index.retrieve(user_question, top_k=top_k)
+
+    # Compose context string from retrieved docs
+    context_pieces = []
+    used_files = set()
+    for r in retrieved:
+        context_pieces.append(f"---\nSourceFile: {r['id']} (chunk {r['chunk_id']})\n{r['text'][:1500]}\n---")
+        used_files.add(r['id'])
+
+    context_block = "\n\n".join(context_pieces) if context_pieces else ""
+
+    augmented = f"{SYSTEM_PROMPT}\n\nUser question: {user_question}\n\nContext from local WHO PDFs:\n{context_block}\n\nAnswer in the required structure and cite sources (use filenames if using local PDFs)."
+    return augmented, [{"file": f} for f in used_files]
+
+# -------------------------
+# Format dataset entry into verified template (fallback)
+# -------------------------
+def format_dataset_entry(entry: dict) -> str:
+    symptoms = "\n• ".join(entry.get("symptoms", []))
+    prevention = "\n• ".join(entry.get("prevention", []))
+    treatment = entry.get("treatment", "")
+    source = entry.get("source", "WHO")
+    formatted = f"""{entry.get('name')}
+
+Symptoms:
+• {symptoms}
+
+Prevention:
+• {prevention}
+
+Treatment:
+{treatment}
+
+Source: {source}
+
+⚠️ Note: This is general health information. For diagnosis and treatment, consult a qualified healthcare provider."""
+    return formatted
+
+def fallback_to_dataset(query: str) -> str:
+    q = query.lower()
+    for key, entry in HEALTH_DATASET.items():
+        if key in q:
+            return format_dataset_entry(entry)
+    return ("I could not find a direct match in the local dataset. "
+            "Try a more specific condition name, or consult the 'Verified Sources' listed in the sidebar.")
+
+# -------------------------
+# STREAMLIT UI: Sidebar
+# -------------------------
 with st.sidebar:
-    st.image("africare.jpg", width=130)
-    st.title("Africare AI")
-    st.caption("Your African Health Companion")
+    # logo
+    if Path("africare-logo.jpg").exists():
+        st.image("africare-logo.jpg", width=140)
+    else:
+        st.caption("Place africare-logo.jpg next to this script to show the logo.")
+
+    st.title("Africare RAG")
+    st.caption("AI Health Assistant — Local WHO PDF RAG")
 
     lang_code = st.selectbox("Language", options=list(LANGUAGES.keys()), format_func=lambda x: LANGUAGES[x])
+    theme_choice = st.radio("Theme", ["Light", "Dark"], index=0)
+    apply_theme(theme_choice)
 
-    theme = st.radio("Theme", ["Light", "Dark"])
-    apply_theme(theme)
+    # show rag readiness
+    if st.session_state.rag_ready:
+        st.success(f"RAG ready — {len(st.session_state._who_pdf_files)} PDF(s) indexed: {', '.join(st.session_state._who_pdf_files)}")
+    else:
+        st.warning("No WHO PDFs loaded. Put PDFs into ./who_pdfs/ and refresh the app to enable RAG.")
 
-    # Display (and allow) automatic online/offline detection override
-    st.markdown("### Connection")
+    # connection auto-detect + override
     if st.session_state.internet_available:
         st.success("Internet: Available")
     else:
         st.warning("Internet: Not detected")
 
-    # Allow manual override
     conn_override = st.selectbox("Connection Mode", options=["Auto-detect", "Force Online", "Force Offline"])
     if conn_override == "Force Online":
         is_offline = False
@@ -269,59 +425,95 @@ with st.sidebar:
         is_offline = not st.session_state.internet_available
 
     st.divider()
-
-    st.subheader("LLM Providers (optional keys)")
-    st.markdown("Set API keys as environment variables: `OPENAI_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`.")
-    # Provider order preference
-    provider_order = st.multiselect("Provider order (tried top→bottom)", ["openai", "groq", "gemini"], default=["openai","gemini","groq"])
+    st.subheader("LLM Providers (optional)")
+    st.markdown("Provide API keys via env vars: OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY")
+    providers_order = st.multiselect("Provider order (top→bottom)", ["openai","gemini","groq"], default=["openai","gemini","groq"])
 
     st.divider()
     if st.button(TRANSLATIONS[lang_code]["clear"]):
         st.session_state.messages = []
         st.success("History cleared!")
 
+    st.divider()
     st.subheader("Verified Sources")
-    st.markdown("- WHO Africa\n- Ghana Health Service\n- CDC Africa\n- UNICEF")
+    st.markdown("- Local WHO PDFs (if loaded)\n- WHO\n- Africa CDC\n- Ghana Health Service\n- CDC")
 
-# ---------------------------
-# Main UI
-# ---------------------------
-t = TRANSLATIONS[lang_code]
-st.title(t["welcome"])
-st.write(t["subtitle"])
+# -------------------------
+# MAIN: Chat area
+# -------------------------
+st.title(TRANSLATIONS[lang_code]["welcome"])
+st.write(TRANSLATIONS[lang_code]["subtitle"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Show history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Display past messages
+for m in st.session_state.messages:
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
 
-# Input and handling
-if prompt := st.chat_input("Type your health question..."):
-    # Save user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# Input
+user_input = st.chat_input("Type your health question (e.g., 'What is malaria?')...")
+
+if user_input:
+    # Save user
+    st.session_state.messages.append({"role":"user","content":user_input})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(user_input)
 
-    # Decide response path
+    # Generate response
     with st.chat_message("assistant"):
-        with st.spinner("Africare is thinking..."):
+        with st.spinner("Africare searching local WHO PDFs and composing response..."):
             time.sleep(0.6)
 
-            # If offline (either forced or auto), use fallback kb
+            # Build augmented prompt using local RAG
+            rag_index = st.session_state.rag_index if st.session_state.rag_ready else None
+            augmented_prompt, used_files = build_augmented_prompt(user_input, rag_index, top_k=4, lang=lang_code)
+
+            response_text = None
             if is_offline:
-                response = fallback_kb_response(prompt, lang=lang_code)
+                # offline -> prefer local dataset then RAG retrieved content (no LLM)
+                if rag_index and st.session_state.rag_ready:
+                    # try to answer by returning retrieved context + instruction to user
+                    retrieved = rag_index.retrieve(user_input, top_k=4)
+                    if retrieved:
+                        # Try to synthesize a succinct reply by showing context and dataset match
+                        # We'll try to find a matching HEALTH_DATASET entry first
+                        ds = fallback_to_dataset(user_input)
+                        # Compose reply: prioritize dataset entry + retrieved excerpts
+                        ctxs = "\n\n".join([f"From {r['id']} (chunk {r['chunk_id']}):\n{r['text'][:800]}..." for r in retrieved])
+                        response_text = f"Based on verified local WHO documents and our dataset:\n\n{ds}\n\nRelevant excerpts from local WHO PDFs:\n{ctxs}\n\nSource: {', '.join({r['id'] for r in retrieved})}\n\n⚠️ Note: This is general information. Consult a qualified healthcare provider."
+                    else:
+                        response_text = fallback_to_dataset(user_input)
+                else:
+                    # No RAG -> dataset fallback
+                    response_text = fallback_to_dataset(user_input)
             else:
-                # Try providers in order; if none succeed, fallback to KB
-                # If user didn't pick any provider in UI, default to trying OpenAI->Gemini->Groq
-                order = provider_order or ["openai", "gemini", "groq"]
-                response = generate_with_providers(prompt, order)
+                # Online -> try LLM providers with augmented prompt
+                order = providers_order or ["openai","gemini","groq"]
+                try:
+                    llm_out = call_providers(SYSTEM_PROMPT, augmented_prompt, order)
+                    if llm_out:
+                        response_text = llm_out
+                    else:
+                        # LLM not available or failed -> fallback to dataset + retrieved context
+                        if rag_index and st.session_state.rag_ready:
+                            retrieved = rag_index.retrieve(user_input, top_k=4)
+                            if retrieved:
+                                ctxs = "\n\n".join([f"From {r['id']} (chunk {r['chunk_id']})\n{r['text'][:1000]}..." for r in retrieved])
+                                ds = fallback_to_dataset(user_input)
+                                response_text = f"{ds}\n\nRelevant local excerpts:\n{ctxs}\n\nSource: {', '.join({r['id'] for r in retrieved})}\n\n⚠️ Note: This is general information."
+                            else:
+                                response_text = fallback_to_dataset(user_input)
+                        else:
+                            response_text = fallback_to_dataset(user_input)
+                except Exception as e:
+                    response_text = f"Error calling remote LLMs: {str(e)}\n\nFalling back to local dataset.\n\n" + fallback_to_dataset(user_input)
 
-            st.markdown(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            # Display & store
+            st.markdown(response_text)
+            st.session_state.messages.append({"role":"assistant","content":response_text})
 
-# footer
+# Footer
 st.markdown("---")
-st.caption(t["disclaimer"])
+st.caption(TRANSLATIONS[lang_code]["disclaimer"])
