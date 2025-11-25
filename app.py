@@ -2,69 +2,68 @@ import streamlit as st
 import time
 from datetime import datetime
 
-# -------------------------------------------------------------------
+# ---------------------------------------
 # PAGE CONFIG
-# -------------------------------------------------------------------
+# ---------------------------------------
 st.set_page_config(
     page_title="Africare - AI Health Assistant",
-    page_icon="🌍",
+    page_icon="africare-log.jpg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# -------------------------------------------------------------------
-# THEMES
-# -------------------------------------------------------------------
-LIGHT_THEME = """
-    <style>
-        .main {
-            background-color: #f8f9fa !important;
-        }
-        .stChatMessage {
-            background-color: #ffffff !important;
-            border-radius: 15px;
-            padding: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .stButton>button {
-            background-color: #0F766E !important;
-            color: white !important;
-            border-radius: 10px !important;
-            padding: 10px 20px !important;
-            border: none !important;
-        }
-    </style>
-"""
+# ---------------------------------------
+# DUAL THEME SUPPORT (CSS)
+# ---------------------------------------
+def apply_theme(theme):
+    if theme == "Light":
+        bg = "#f8f9fa"
+        text = "#000000"
+        bubble_user = "#DCF8C6"
+        bubble_bot = "#FFFFFF"
+    else:
+        bg = "#0f172a"
+        text = "#ffffff"
+        bubble_user = "#1e293b"
+        bubble_bot = "#334155"
 
-DARK_THEME = """
-    <style>
-        .main {
-            background-color: #0d1117 !important;
-            color: #e6edf3 !important;
-        }
-        .stChatMessage {
-            background-color: #161b22 !important;
-            color: #e6edf3 !important;
-            border-radius: 15px;
-            padding: 12px;
-            box-shadow: 0 2px 4px rgba(255,255,255,0.05);
-        }
-        .stButton>button {
-            background-color: #238636 !important;
-            color: white !important;
-            border-radius: 10px !important;
-            padding: 10px 20px !important;
-            border: none !important;
-        }
-    </style>
-"""
+    st.markdown(f"""
+        <style>
+        body {{
+            background-color: {bg};
+            color: {text};
+        }}
+        .main {{
+            background-color: {bg};
+        }}
+        .stChatMessage {{
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }}
+        .stChatMessage[data-role='user'] {{
+            background-color: {bubble_user};
+        }}
+        .stChatMessage[data-role='assistant'] {{
+            background-color: {bubble_bot};
+        }}
+        .stButton>button {{
+            background-color: #0F766E;
+            color: white;
+            border-radius: 10px;
+            border: none;
+            padding: 9px 18px;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
 
-# -------------------------------------------------------------------
-# MULTILANGUAGE DATA
-# -------------------------------------------------------------------
+
+# ---------------------------------------
+# LANGUAGE CONFIG
+# ---------------------------------------
 LANGUAGES = {
     "en": "English",
-    "ak": "Akan", 
+    "ak": "Akan",
     "sw": "Swahili",
     "ga": "Ga",
     "ew": "Ewe",
@@ -77,136 +76,154 @@ TRANSLATIONS = {
         "subtitle": "Ask me anything about health.",
         "offline": "Offline Mode",
         "online": "Online Mode",
-        "input": "Type your health question...",
-        "offline_limit": "I am offline. I can only answer questions about Malaria and Cholera.",
-        "default_online": "Consult a doctor for specific advice. General tip: Stay hydrated and eat well.",
-        "disclaimer": "This is an AI assistant. For medical emergencies, please visit the nearest hospital."
+        "disclaimer": "This is an AI assistant. For emergencies, please contact a hospital immediately.",
+        "clear": "Clear History"
     },
     "sw": {
         "welcome": "Hujambo! Mimi ni Africare AI.",
         "subtitle": "Niulize chochote kuhusu afya.",
         "offline": "Hali ya Nje ya Mtandao",
         "online": "Mtandaoni",
-        "input": "Andika swali lako kuhusu afya...",
-        "offline_limit": "Niko nje ya mtandao. Naweza kujibu Malaria au Kipindupindu tu.",
-        "default_online": "Kwa ushauri maalum, wasiliana na daktari. Ushauri wa jumla: Kunywa maji mengi.",
-        "disclaimer": "Hii ni akili bandia. Kwa dharura, tembelea hospitali."
+        "disclaimer": "Hii ni AI. Kwa dharura, tembelea hospitali.",
+        "clear": "Futa Mawasiliano"
     },
     "ak": {
         "welcome": "Akwaaba! Me ne Africare AI.",
         "subtitle": "Bisa me biribiara fa apɔwmuden ho.",
         "offline": "Offline Mode",
         "online": "Wɔ Intanɛt So",
-        "input": "Bisa wo asɛmmisa fa apɔwmuden ho...",
-        "offline_limit": "Mete offline. Metumi ma mmuae fa Malaria ne Cholera nko ara.",
-        "default_online": "Di nsu bebree na didi yie. Bisa dɔkotani sɛ wopɛ nkyerɛkyerɛmu pa.",
-        "disclaimer": "Sɛ woyare pa ara a, kɔ asopiti."
+        "disclaimer": "Sɛ woyare pa ara a, kɔ asɔpiti.",
+        "clear": "Pepa Abesua"
     }
 }
 
+
+# ---------------------------------------
+# KNOWLEDGE BASE (EXPANDED)
+# ---------------------------------------
 KNOWLEDGE_BASE = {
     "malaria": {
-        "en": "Malaria is caused by parasites transmitted by mosquitoes. Symptoms: Fever, Chills, Headache.",
-        "sw": "Malaria inasababishwa na mbu. Dalili: Homa, Baridi, Kuumwa kichwa.",
-        "ak": "Malaria yɛ yareɛ a mmoawa de ba. Nsɛnkyerɛnne: Huraeɛ, Awɔ, Tipae."
+        "en": "Malaria is caused by mosquito-borne parasites. Symptoms include fever, chills, vomiting, and headaches.",
+        "sw": "Malaria inasababishwa na mbu. Dalili ni homa, baridi, na maumivu ya kichwa.",
+        "ak": "Malaria yɛ yareɛ a mmoawa de ba. Nsɛnkyerɛnne ne huraeɛ ne awɔ."
     },
     "cholera": {
-        "en": "Cholera is caused by contaminated water. Symptoms: Severe diarrhea, Dehydration.",
-        "sw": "Kipindupindu kinasababishwa na maji machafu. Dalili: Kuhara sana.",
-        "ak": "Cholera fi nsuo a ɛnni."
+        "en": "Cholera spreads through contaminated water. It causes severe diarrhea and dehydration.",
+        "sw": "Kipindupindu husababishwa na maji machafu. Dalili ni kuharisha sana.",
+        "ak": "Cholera fi nsuo a ɛnni hɔ te sɛɛ. Ema onipa twitwaa nsu."
+    },
+    "typhoid": {
+        "en": "Typhoid is caused by Salmonella bacteria. Symptoms: fever, weakness, stomach pain.",
+        "sw": "Typhoid inasababishwa na bakteria. Dalili ni homa, uchovu, maumivu ya tumbo.",
+        "ak": "Typhoid yɛ bacteria yareɛ. Nsɛnkyerɛnne: huraeɛ, ahohuru, yaw wɔ yafunu mu."
+    },
+    "diabetes": {
+        "en": "Diabetes affects how your body uses sugar. Symptoms include thirst, frequent urination, and fatigue.",
+        "sw": "Kisukari huathiri matumizi ya sukari. Dalili: kiu, kukojoa mara nyingi.",
+        "ak": "Diabetes yɛ mogya sukuru nsesae. Nsɛnkyerɛnne ne sare ogya ne da ho dwo."
+    },
+    "pregnancy": {
+        "en": "Healthy pregnancy requires good nutrition and regular checkups.",
+        "sw": "Mimba yenye afya inahitaji lishe bora na uchunguzi wa mara kwa mara.",
+        "ak": "Mpa mu ho hia aduane pa ne asɛmpa mfitiase."
     }
 }
 
-# -------------------------------------------------------------------
-# SIDEBAR
-# -------------------------------------------------------------------
-with st.sidebar:
-    st.title("🌍 Africare")
-    st.caption("Your Health Companion")
 
-    # language
-    lang = st.selectbox(
+# ---------------------------------------
+# SIDEBAR
+# ---------------------------------------
+with st.sidebar:
+    st.image("africare-log.jpg", width=130)
+
+    st.title("Africare AI")
+    st.caption("Your African Health Companion")
+
+    # Language selector
+    lang_code = st.selectbox(
         "Language",
         options=list(LANGUAGES.keys()),
-        format_func=lambda x: LANGUAGES[x],
-        index=0
+        format_func=lambda x: LANGUAGES[x]
     )
 
-    # offline
-    offline_mode = st.toggle("Offline Mode", value=False)
-    status_label = TRANSLATIONS[lang]["offline"] if offline_mode else TRANSLATIONS[lang]["online"]
-    st.caption(f"Status: {status_label}")
+    # Theme toggle
+    theme = st.radio("Theme", ["Light", "Dark"])
+    apply_theme(theme)
 
-    # theme toggle
-    st.divider()
-    theme = st.radio("Theme", ["Light", "Dark"], horizontal=True)
+    # Offline toggle
+    is_offline = st.toggle("Offline Mode", value=False)
+    mode_text = TRANSLATIONS[lang_code]["offline"] if is_offline else TRANSLATIONS[lang_code]["online"]
+    st.caption(f"Status: {mode_text}")
 
-    # sources
+    # Clear history button
+    if st.button(TRANSLATIONS[lang_code]["clear"]):
+        st.session_state.messages = []
+        st.success("History cleared!")
+
     st.divider()
     st.subheader("Verified Sources")
-    st.markdown("- DHS Program\n- WHO Africa\n- Ghana Health Service")
+    st.markdown("- WHO Africa\n- Ghana Health Service\n- CDC Africa\n- UNICEF")
 
-# -------------------------------------------------------------------
-# APPLY THEME
-# -------------------------------------------------------------------
-if theme == "Light":
-    st.markdown(LIGHT_THEME, unsafe_allow_html=True)
-else:
-    st.markdown(DARK_THEME, unsafe_allow_html=True)
 
-# -------------------------------------------------------------------
-# MAIN CHAT UI
-# -------------------------------------------------------------------
-t = TRANSLATIONS[lang]
+# ---------------------------------------
+# MAIN INTERFACE
+# ---------------------------------------
+t = TRANSLATIONS[lang_code]
 
 st.title(t["welcome"])
 st.write(t["subtitle"])
 
-# Initialize messages
+# Initialize chat log
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Replay past messages
+# Display chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+        st.markdown(msg["content"])
 
-# User input
-if prompt := st.chat_input(t["input"]):
-    # store & display user message
+# Chat Input
+if prompt := st.chat_input("Type your health question..."):
+    # Save user message
     st.session_state.messages.append({"role": "user", "content": prompt})
+
     with st.chat_message("user"):
-        st.write(prompt)
+        st.markdown(prompt)
 
-    # AI response
-    lower = prompt.lower()
-    response = ""
-
+    # Generate assistant response
     with st.chat_message("assistant"):
         with st.spinner("Africare is thinking..."):
             time.sleep(1)
+            lower_input = prompt.lower()
 
-            if offline_mode:
-                # limited answers
-                if "malaria" in lower:
-                    response = KNOWLEDGE_BASE["malaria"].get(lang, KNOWLEDGE_BASE["malaria"]["en"]) + "\n\n*(Offline Cache)*"
-                elif "cholera" in lower:
-                    response = KNOWLEDGE_BASE["cholera"].get(lang, KNOWLEDGE_BASE["cholera"]["en"]) + "\n\n*(Offline Cache)*"
-                else:
-                    response = t["offline_limit"]
-            else:
-                # online knowledge
-                matched = False
-                for disease, data in KNOWLEDGE_BASE.items():
-                    if disease in lower:
-                        response = data.get(lang, data["en"])
-                        matched = True
+            # OFFLINE MODE
+            if is_offline:
+                found = False
+                for key in KNOWLEDGE_BASE:
+                    if key in lower_input:
+                        response = KNOWLEDGE_BASE[key].get(lang_code, KNOWLEDGE_BASE[key]["en"])
+                        response += "\n\n*(Offline Cache)*"
+                        found = True
                         break
-                if not matched:
-                    response = t["default_online"]
 
-            st.write(response)
+                if not found:
+                    response = "Offline mode available for Malaria, Cholera, Diabetes, Typhoid & Pregnancy only."
+
+            # ONLINE MODE
+            else:
+                found = False
+                for key in KNOWLEDGE_BASE:
+                    if key in lower_input:
+                        response = KNOWLEDGE_BASE[key].get(lang_code, KNOWLEDGE_BASE[key]["en"])
+                        found = True
+                        break
+
+                if not found:
+                    response = "Please consult a medical professional for accurate diagnosis. Drink water, rest, and monitor your symptoms."
+
+            st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
+# Footer
 st.markdown("---")
 st.caption(t["disclaimer"])
