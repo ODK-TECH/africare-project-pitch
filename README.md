@@ -45,7 +45,7 @@ Africare is an intelligent chatbot that:
 ## 💻 Live Demo
 
 Check out our prototype here: [Launch Africare Demo
-](https://50e15b57-bf67-4b4d-9c77-6fb80c3a9ae6-00-3163ifda0441k.janeway.replit.dev/)
+](https://africare-project-pitch-s22dcwt4favxuupmza2h3j.streamlit.app/#hello-i-m-africare-ai)
 ## 👥 The Team
 
 - Dominic Obeng Koranteng
