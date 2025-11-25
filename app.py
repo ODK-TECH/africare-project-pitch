@@ -2,7 +2,9 @@ import streamlit as st
 import time
 from datetime import datetime
 
-# Page Config
+# -------------------------------------------------------------------
+# PAGE CONFIG
+# -------------------------------------------------------------------
 st.set_page_config(
     page_title="Africare - AI Health Assistant",
     page_icon="🌍",
@@ -10,29 +12,56 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to mimic the React Design
-st.markdown("""
+# -------------------------------------------------------------------
+# THEMES
+# -------------------------------------------------------------------
+LIGHT_THEME = """
     <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    .stButton>button {
-        background-color: #0F766E;
-        color: white;
-        border-radius: 10px;
-        border: none;
-        padding: 10px 20px;
-    }
-    .stChatMessage {
-        background-color: white;
-        border-radius: 15px;
-        padding: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
+        .main {
+            background-color: #f8f9fa !important;
+        }
+        .stChatMessage {
+            background-color: #ffffff !important;
+            border-radius: 15px;
+            padding: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stButton>button {
+            background-color: #0F766E !important;
+            color: white !important;
+            border-radius: 10px !important;
+            padding: 10px 20px !important;
+            border: none !important;
+        }
     </style>
-    """, unsafe_allow_html=True)
+"""
 
-# Mock Data (Same as React App)
+DARK_THEME = """
+    <style>
+        .main {
+            background-color: #0d1117 !important;
+            color: #e6edf3 !important;
+        }
+        .stChatMessage {
+            background-color: #161b22 !important;
+            color: #e6edf3 !important;
+            border-radius: 15px;
+            padding: 12px;
+            box-shadow: 0 2px 4px rgba(255,255,255,0.05);
+        }
+        .stButton>button {
+            background-color: #238636 !important;
+            color: white !important;
+            border-radius: 10px !important;
+            padding: 10px 20px !important;
+            border: none !important;
+        }
+    </style>
+"""
+
+# -------------------------------------------------------------------
+# MULTILANGUAGE DATA
+# -------------------------------------------------------------------
 LANGUAGES = {
     "en": "English",
     "ak": "Akan", 
@@ -48,6 +77,9 @@ TRANSLATIONS = {
         "subtitle": "Ask me anything about health.",
         "offline": "Offline Mode",
         "online": "Online Mode",
+        "input": "Type your health question...",
+        "offline_limit": "I am offline. I can only answer questions about Malaria and Cholera.",
+        "default_online": "Consult a doctor for specific advice. General tip: Stay hydrated and eat well.",
         "disclaimer": "This is an AI assistant. For medical emergencies, please visit the nearest hospital."
     },
     "sw": {
@@ -55,6 +87,9 @@ TRANSLATIONS = {
         "subtitle": "Niulize chochote kuhusu afya.",
         "offline": "Hali ya Nje ya Mtandao",
         "online": "Mtandaoni",
+        "input": "Andika swali lako kuhusu afya...",
+        "offline_limit": "Niko nje ya mtandao. Naweza kujibu Malaria au Kipindupindu tu.",
+        "default_online": "Kwa ushauri maalum, wasiliana na daktari. Ushauri wa jumla: Kunywa maji mengi.",
         "disclaimer": "Hii ni akili bandia. Kwa dharura, tembelea hospitali."
     },
     "ak": {
@@ -62,6 +97,9 @@ TRANSLATIONS = {
         "subtitle": "Bisa me biribiara fa apɔwmuden ho.",
         "offline": "Offline Mode",
         "online": "Wɔ Intanɛt So",
+        "input": "Bisa wo asɛmmisa fa apɔwmuden ho...",
+        "offline_limit": "Mete offline. Metumi ma mmuae fa Malaria ne Cholera nko ara.",
+        "default_online": "Di nsu bebree na didi yie. Bisa dɔkotani sɛ wopɛ nkyerɛkyerɛmu pa.",
         "disclaimer": "Sɛ woyare pa ara a, kɔ asopiti."
     }
 }
@@ -79,67 +117,95 @@ KNOWLEDGE_BASE = {
     }
 }
 
-# Sidebar
+# -------------------------------------------------------------------
+# SIDEBAR
+# -------------------------------------------------------------------
 with st.sidebar:
     st.title("🌍 Africare")
-    st.caption("Health Companion")
-    
-    lang_code = st.selectbox("Language", options=list(LANGUAGES.keys()), format_func=lambda x: LANGUAGES[x])
-    
-    is_offline = st.toggle("Offline Mode", value=False)
-    mode_text = TRANSLATIONS.get(lang_code, TRANSLATIONS["en"])["offline"] if is_offline else TRANSLATIONS.get(lang_code, TRANSLATIONS["en"])["online"]
-    st.caption(f"Status: {mode_text}")
-    
+    st.caption("Your Health Companion")
+
+    # language
+    lang = st.selectbox(
+        "Language",
+        options=list(LANGUAGES.keys()),
+        format_func=lambda x: LANGUAGES[x],
+        index=0
+    )
+
+    # offline
+    offline_mode = st.toggle("Offline Mode", value=False)
+    status_label = TRANSLATIONS[lang]["offline"] if offline_mode else TRANSLATIONS[lang]["online"]
+    st.caption(f"Status: {status_label}")
+
+    # theme toggle
+    st.divider()
+    theme = st.radio("Theme", ["Light", "Dark"], horizontal=True)
+
+    # sources
     st.divider()
     st.subheader("Verified Sources")
     st.markdown("- DHS Program\n- WHO Africa\n- Ghana Health Service")
 
-# Main Chat Interface
-t = TRANSLATIONS.get(lang_code, TRANSLATIONS["en"])
+# -------------------------------------------------------------------
+# APPLY THEME
+# -------------------------------------------------------------------
+if theme == "Light":
+    st.markdown(LIGHT_THEME, unsafe_allow_html=True)
+else:
+    st.markdown(DARK_THEME, unsafe_allow_html=True)
+
+# -------------------------------------------------------------------
+# MAIN CHAT UI
+# -------------------------------------------------------------------
+t = TRANSLATIONS[lang]
 
 st.title(t["welcome"])
 st.write(t["subtitle"])
 
+# Initialize messages
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Replay past messages
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
-if prompt := st.chat_input("Type your health question..."):
-    # User Message
+# User input
+if prompt := st.chat_input(t["input"]):
+    # store & display user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.write(prompt)
 
-    # AI Logic
+    # AI response
+    lower = prompt.lower()
     response = ""
-    lower_input = prompt.lower()
-    
+
     with st.chat_message("assistant"):
         with st.spinner("Africare is thinking..."):
-            time.sleep(1) # Simulate delay
-            
-            if is_offline:
-                if "malaria" in lower_input:
-                    response = KNOWLEDGE_BASE["malaria"].get(lang_code, KNOWLEDGE_BASE["malaria"]["en"]) + "\n\n*(Offline Cache)*"
-                elif "cholera" in lower_input:
-                    response = KNOWLEDGE_BASE["cholera"].get(lang_code, KNOWLEDGE_BASE["cholera"]["en"]) + "\n\n*(Offline Cache)*"
+            time.sleep(1)
+
+            if offline_mode:
+                # limited answers
+                if "malaria" in lower:
+                    response = KNOWLEDGE_BASE["malaria"].get(lang, KNOWLEDGE_BASE["malaria"]["en"]) + "\n\n*(Offline Cache)*"
+                elif "cholera" in lower:
+                    response = KNOWLEDGE_BASE["cholera"].get(lang, KNOWLEDGE_BASE["cholera"]["en"]) + "\n\n*(Offline Cache)*"
                 else:
-                    response = "I am offline. I can only answer questions about Malaria and Cholera."
+                    response = t["offline_limit"]
             else:
-                # Online Logic Simulation
-                found = False
-                for key, val in KNOWLEDGE_BASE.items():
-                    if key in lower_input:
-                        response = val.get(lang_code, val["en"])
-                        found = True
+                # online knowledge
+                matched = False
+                for disease, data in KNOWLEDGE_BASE.items():
+                    if disease in lower:
+                        response = data.get(lang, data["en"])
+                        matched = True
                         break
-                if not found:
-                    response = "Consult a doctor for specific advice. General tip: Stay hydrated and eat well."
-            
-            st.markdown(response)
+                if not matched:
+                    response = t["default_online"]
+
+            st.write(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
 st.markdown("---")
