@@ -134,7 +134,7 @@ KNOWLEDGE_BASE = {
 # SIDEBAR
 # ---------------------------------------
 with st.sidebar:
-    st.image("africare-log.jpg", width=130)
+    st.image("africare.jpg", width=130)
 
     st.title("Africare AI")
     st.caption("Your African Health Companion")
