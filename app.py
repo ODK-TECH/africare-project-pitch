@@ -519,7 +519,7 @@ def find_disease_in_query(query: str) -> Optional[str]:
 # Sidebar UI
 # -------------------------
 with st.sidebar:
-    st.image("africare-log.jpg", width=130)
+    st.image("africare.jpg", width=130)
     st.title("Africare AI")
     st.caption("Your African Health Companion")
     lang_code = st.selectbox("Language", options=list(LANGUAGES.keys()), format_func=lambda x: LANGUAGES[x])
