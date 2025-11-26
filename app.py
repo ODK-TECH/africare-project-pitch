@@ -1,129 +1,54 @@
 # app.py
 """
-Africare - AI Health Assistant (Streamlit)
-Single-file app for GitHub: copy-paste into `app.py`.
-Place `africare-log.jpg` in the same repository root.
-
-Features:
-- Dual Light/Dark theme
-- Expanded offline knowledge base (12+ diseases)
-- System prompt that enforces verified-health response format
-- Integrated optional LLM providers (OpenAI / Groq / Gemini) - uses env vars if present
-- Online/offline auto-detection + manual override
-- Clear History button
-- Fallback deterministic offline responder that returns the specified template
-Notes:
-- Groq/Gemini blocks are placeholders. Adapt endpoints if/when you have provider docs.
-- Do NOT commit API keys to repo. Use environment variables:
-    OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY
+Africare - Streamlit AI Health Assistant
+Place africare-log.jpg beside this file.
+Set optional env vars: OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY
 """
 
 import os
 import time
-import json
 import requests
 import streamlit as st
-from typing import Optional
+from datetime import datetime
 
 # -------------------------
-# Page config
+# Page config (uses local image as icon)
 # -------------------------
 st.set_page_config(
     page_title="Africare - AI Health Assistant",
-    page_icon="africare-log.jpg",
+    page_icon="africare-log.jpg",  # local file
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # -------------------------
-# Theme/CSS
+# System Prompt (enforces the verified-health structure)
 # -------------------------
-def apply_theme(theme: str):
-    if theme == "Light":
-        bg = "#f8f9fa"
-        text = "#0f172a"
-        bubble_user = "#DCF8C6"
-        bubble_bot = "#FFFFFF"
-    else:
-        bg = "#0b1220"
-        text = "#e6eef5"
-        bubble_user = "#1f2a37"
-        bubble_bot = "#15202b"
-
-    st.markdown(
-        f"""
-    <style>
-    body {{ background-color: {bg}; color: {text}; }}
-    .main {{ background-color: {bg}; }}
-    .stButton>button {{ background-color: #0F766E; color: white; border-radius: 10px; padding: 8px 16px; border: none; }}
-    .stChatMessage {{ border-radius: 12px; padding: 10px; margin-bottom: 8px; }}
-    /* role-specific (visual hint) */
-    div[data-testid="stVerticalBlock"] > .stChatMessage[data-role="user"] {{
-        background: {bubble_user};
-    }}
-    div[data-testid="stVerticalBlock"] > .stChatMessage[data-role="assistant"] {{
-        background: {bubble_bot};
-    }}
-    .small-muted {{ font-size:0.85rem; color: #9aa4b2; }}
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
-
-# -------------------------
-# Translations (minimal)
-# -------------------------
-LANGUAGES = {
-    "en": "English",
-    "ak": "Akan",
-    "sw": "Swahili",
-    "ga": "Ga",
-    "ew": "Ewe",
-    "fa": "Fante",
-}
-
-TRANSLATIONS = {
-    "en": {
-        "welcome": "Hello! I'm Africare AI.",
-        "subtitle": "Ask me anything about health.",
-        "offline": "Offline Mode",
-        "online": "Online Mode",
-        "disclaimer": "This is general health information. For diagnosis or treatment, consult a qualified healthcare provider.",
-        "clear": "Clear History",
-    },
-    # Additional language keys exist but English is default for this single-file app
-}
-
-# -------------------------
-# Verified response system prompt (enforce format)
-# -------------------------
-SYSTEM_PROMPT = """
-You are Africare — a Verified Health Information Assistant for Africa.
-WHENEVER the user asks about a disease, condition, symptom, prevention, or treatment, ALWAYS respond in this EXACT structure and tone:
+SYSTEM_PROMPT = """You are a Verified Health Information Assistant for Africa.
+When a user asks a health question (like "what is malaria?"), ALWAYS respond exactly in this structure and nothing else:
 
 Based on verified health information:
 [Condition Name]
 
-Symptoms: • Item 1 • Item 2 • Item 3
+Symptoms: • item • item • item
 
-Prevention: • Item 1 • Item 2 • Item 3
+Prevention: • item • item • item
 
-Treatment: Short guidance. When to seek care. First-line treatments if applicable.
+Treatment: [short instructions]
 
-Source: <authoritative source — WHO / CDC / Africa CDC / country ministry>
+Source: [WHO / CDC / WHO regional page or similar]
 
-⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider.
+⚠️ Note: This is general health information. For diagnosis or treatment, please consult a qualified healthcare provider.
 
 RULES:
-- Use the DISEASE_DATASET if it contains the condition. If present, use the dataset's Source exactly.
-- Keep language factual, concise, and avoid clinical speculation.
-- Do not provide prescriptions or medication dosages beyond named recommended first-line therapies.
-- If the condition is not known, provide a short WHO-style summary and include "Source: WHO" or "Source: WHO / CDC" as appropriate.
-- Always include the "Based on verified health information:" prefix and the final warning note exactly as above.
+- If the disease/condition exists in the internal DISEASE_DATASET, use that dataset entry exactly (do not invent).
+- If not in dataset, produce a concise WHO-style factual answer.
+- Do not provide unverified claims or experimental/unapproved treatments.
+- Keep the bullet format (•) exactly as shown. Keep headings identical.
 """
 
 # -------------------------
-# Knowledge dataset (12+ diseases) - offline fallback
+# Disease dataset: 15 common African-region diseases
 # -------------------------
 DISEASE_DATASET = {
     "malaria": {
@@ -133,21 +58,21 @@ DISEASE_DATASET = {
             "Chills and sweating",
             "Headache",
             "Nausea and vomiting",
-            "Muscle pain and fatigue",
+            "Muscle pain and fatigue"
         ],
         "prevention": [
             "Sleep under insecticide-treated mosquito nets",
             "Use indoor residual spraying",
             "Take antimalarial medication as prescribed (especially for pregnant women)",
             "Eliminate standing water where mosquitoes breed",
-            "Wear long-sleeved clothing during dawn and dusk",
+            "Wear long-sleeved clothing during dawn and dusk"
         ],
         "treatment": [
             "Seek immediate medical care",
-            "Artemisinin-based combination therapies (ACTs) are first-line",
-            "Never self-medicate",
+            "Artemisinin-based combination therapies (ACTs) are the recommended first-line treatment",
+            "Never self-medicate"
         ],
-        "source": "WHO Global Health Observatory – African Region",
+        "source": "WHO Global Health Observatory – African Region"
     },
     "cholera": {
         "name": "Cholera",
@@ -155,20 +80,20 @@ DISEASE_DATASET = {
             "Watery diarrhea",
             "Vomiting",
             "Severe dehydration",
-            "Leg cramps",
+            "Leg cramps"
         ],
         "prevention": [
             "Drink safe and treated water",
             "Practice good sanitation and hygiene",
-            "Wash hands with soap frequently",
-            "Cook food thoroughly",
+            "Wash hands frequently with soap",
+            "Cook food thoroughly"
         ],
         "treatment": [
-            "Immediate oral rehydration",
+            "Immediate oral rehydration (ORS)",
             "Seek urgent medical care",
-            "Severe cases require intravenous fluids and antibiotics",
+            "Severe cases require intravenous fluids and antibiotics"
         ],
-        "source": "WHO African Region – Cholera Factsheet",
+        "source": "WHO African Region – Cholera Factsheet"
     },
     "tuberculosis": {
         "name": "Tuberculosis (TB)",
@@ -177,20 +102,20 @@ DISEASE_DATASET = {
             "Chest pain",
             "Coughing blood",
             "Weight loss",
-            "Night sweats",
+            "Night sweats"
         ],
         "prevention": [
             "Early detection and treatment",
-            "BCG vaccination (where indicated)",
-            "Good ventilation and sunlight in living spaces",
-            "Avoid close prolonged contact with infected individuals",
+            "BCG vaccination for infants where recommended",
+            "Good ventilation and sunlight",
+            "Avoid close prolonged contact with infected individuals"
         ],
         "treatment": [
             "Seek medical evaluation",
-            "Standard 6-month antibiotic regimen under supervision",
-            "Do not discontinue medication early",
+            "Treatment typically includes a 6-month antibiotic regimen",
+            "Do not stop medication early"
         ],
-        "source": "WHO TB Factsheet",
+        "source": "WHO TB Factsheet"
     },
     "typhoid": {
         "name": "Typhoid Fever",
@@ -198,19 +123,19 @@ DISEASE_DATASET = {
             "High fever",
             "Weakness and stomach pain",
             "Constipation or diarrhea",
-            "Headache",
+            "Headache"
         ],
         "prevention": [
             "Drink clean water",
             "Wash hands with soap",
-            "Eat cooked food",
-            "Get vaccinated when available",
+            "Eat properly cooked food",
+            "Get vaccinated where available"
         ],
         "treatment": [
             "Seek prompt medical treatment",
-            "Antibiotics prescribed by a health professional",
+            "Antibiotics prescribed by a health professional"
         ],
-        "source": "WHO Typhoid Factsheet",
+        "source": "WHO Typhoid Factsheet"
     },
     "dengue": {
         "name": "Dengue Fever",
@@ -219,20 +144,20 @@ DISEASE_DATASET = {
             "Severe headache",
             "Joint and muscle pain",
             "Pain behind the eyes",
-            "Rash",
+            "Rash"
         ],
         "prevention": [
             "Avoid mosquito bites",
             "Use mosquito repellents",
             "Eliminate stagnant water",
-            "Wear protective clothing",
+            "Wear protective clothing"
         ],
         "treatment": [
-            "Seek medical care for warning signs",
-            "Drink plenty of fluids",
-            "Avoid aspirin or ibuprofen unless advised by a clinician",
+            "Seek medical care",
+            "Maintain hydration and supportive care",
+            "Avoid aspirin and NSAIDs (use acetaminophen if needed)"
         ],
-        "source": "WHO Dengue Factsheet",
+        "source": "WHO Dengue Factsheet"
     },
     "hepatitis_b": {
         "name": "Hepatitis B",
@@ -240,18 +165,18 @@ DISEASE_DATASET = {
             "Fatigue",
             "Yellowing of eyes/skin (jaundice)",
             "Dark urine",
-            "Abdominal pain",
+            "Abdominal pain"
         ],
         "prevention": [
             "Get vaccinated",
             "Avoid sharing needles",
-            "Ensure safe medical procedures and blood screening",
+            "Ensure safe medical procedures"
         ],
         "treatment": [
             "Consult a healthcare provider",
-            "Antiviral medications for chronic cases when indicated",
+            "Antiviral medications for chronic cases as advised by specialists"
         ],
-        "source": "WHO Hepatitis B Factsheet",
+        "source": "WHO Hepatitis B Factsheet"
     },
     "measles": {
         "name": "Measles",
@@ -260,18 +185,17 @@ DISEASE_DATASET = {
             "Cough",
             "Runny nose",
             "Red watery eyes",
-            "Skin rash",
+            "Skin rash"
         ],
         "prevention": [
-            "MMR / measles vaccination",
-            "Good immunization coverage",
+            "MMR vaccination",
+            "Maintain high immunization coverage"
         ],
         "treatment": [
-            "Seek medical care when severe",
-            "Supportive treatment including fluids and rest",
-            "Vitamin A supplements as advised",
+            "Seek medical care",
+            "Supportive treatment including fluids, rest, and vitamin A supplements"
         ],
-        "source": "WHO Measles Overview",
+        "source": "WHO Measles Overview"
     },
     "covid19": {
         "name": "COVID-19",
@@ -280,19 +204,20 @@ DISEASE_DATASET = {
             "Cough",
             "Fatigue",
             "Loss of taste or smell",
-            "Shortness of breath",
+            "Shortness of breath"
         ],
         "prevention": [
             "Vaccination",
             "Handwashing",
-            "Wearing masks in crowded places as recommended",
-            "Good ventilation",
+            "Wearing masks in crowded places",
+            "Good ventilation"
         ],
         "treatment": [
-            "Seek medical care when breathless or at high risk",
+            "Seek medical care for severe symptoms",
             "Supportive care per national guidelines",
+            "Follow local public health guidance"
         ],
-        "source": "WHO COVID-19 Updates",
+        "source": "WHO COVID-19 Updates"
     },
     "ebola": {
         "name": "Ebola Virus Disease",
@@ -301,55 +226,20 @@ DISEASE_DATASET = {
             "Severe weakness",
             "Vomiting",
             "Diarrhea",
-            "Bleeding (in some cases)",
+            "Bleeding"
         ],
         "prevention": [
             "Avoid contact with infected bodily fluids",
-            "Safe burials and infection control",
-            "Use personal protective equipment (PPE) for caregivers",
-            "Avoid bushmeat",
+            "Safe burials",
+            "Use personal protective equipment",
+            "Avoid bushmeat"
         ],
         "treatment": [
-            "Seek urgent specialized medical care",
-            "Supportive treatment in isolation and specialized centers",
+            "Seek urgent medical care",
+            "Supportive treatment in specialized centers",
+            "Follow infection-control measures"
         ],
-        "source": "WHO Ebola Factsheet",
-    },
-    "hiv": {
-        "name": "HIV/AIDS",
-        "symptoms": [
-            "Early: flu-like illness",
-            "Long-term: weight loss, recurrent infections, chronic fatigue",
-        ],
-        "prevention": [
-            "Use condoms and safe sex practices",
-            "Needle-exchange programs",
-            "Test and treat strategy (ART for positives)",
-        ],
-        "treatment": [
-            "Antiretroviral therapy (ART)",
-            "Regular medical follow-up",
-        ],
-        "source": "WHO HIV/AIDS Factsheet",
-    },
-    "schistosomiasis": {
-        "name": "Schistosomiasis (Bilharzia)",
-        "symptoms": [
-            "Abdominal pain",
-            "Blood in urine or stools",
-            "Diarrhea",
-            "Fatigue",
-        ],
-        "prevention": [
-            "Avoid contact with contaminated fresh water",
-            "Improve sanitation",
-            "Mass drug administration where recommended",
-        ],
-        "treatment": [
-            "Praziquantel administered under guidance",
-            "Seek local public health advice",
-        ],
-        "source": "WHO Schistosomiasis Factsheet",
+        "source": "WHO Ebola Factsheet"
     },
     "lassa_fever": {
         "name": "Lassa Fever",
@@ -358,56 +248,163 @@ DISEASE_DATASET = {
             "Weakness",
             "Headache",
             "Sore throat",
-            "In severe cases: bleeding",
+            "Chest pain"
         ],
         "prevention": [
-            "Avoid contact with rodent excreta",
-            "Practice food hygiene and rodent control",
+            "Avoid contact with rodents and their droppings",
+            "Food storage hygiene",
+            "Prompt isolation of suspicious cases"
         ],
         "treatment": [
             "Seek urgent medical care",
-            "Ribavirin may be used in some cases (clinical guidance required)",
+            "Ribavirin may be used in some cases under supervision"
         ],
-        "source": "WHO Lassa Fever Factsheet",
+        "source": "WHO Lassa Fever Factsheet"
     },
+    "yellow_fever": {
+        "name": "Yellow Fever",
+        "symptoms": [
+            "Fever",
+            "Chills",
+            "Severe headache",
+            "Jaundice"
+        ],
+        "prevention": [
+            "Vaccination",
+            "Avoid mosquito bites",
+            "Vector control"
+        ],
+        "treatment": [
+            "Supportive care in hospital",
+            "No specific antiviral therapy for general use"
+        ],
+        "source": "WHO Yellow Fever Factsheet"
+    },
+    "schistosomiasis": {
+        "name": "Schistosomiasis",
+        "symptoms": [
+            "Rash or itchy skin",
+            "Fever",
+            "Cough",
+            "Abdominal pain",
+            "Blood in urine or stool"
+        ],
+        "prevention": [
+            "Avoid swimming in freshwater in endemic areas",
+            "Improved sanitation",
+            "Safe water supplies"
+        ],
+        "treatment": [
+            "Seek medical care",
+            "Praziquantel is standard treatment"
+        ],
+        "source": "WHO Schistosomiasis Factsheet"
+    },
+    "trachoma": {
+        "name": "Trachoma",
+        "symptoms": [
+            "Eye irritation",
+            "Redness",
+            "Discharge from the eye",
+            "Pain in advanced cases"
+        ],
+        "prevention": [
+            "Facial cleanliness",
+            "Environmental improvements",
+            "SAFE strategy (Surgery, Antibiotics, Facial cleanliness, Environmental improvement)"
+        ],
+        "treatment": [
+            "Antibiotics for infection",
+            "Surgery for advanced disease"
+        ],
+        "source": "WHO Trachoma Factsheet"
+    },
+    "onchocerciasis": {
+        "name": "Onchocerciasis (River Blindness)",
+        "symptoms": [
+            "Severe itching",
+            "Skin nodules",
+            "Visual impairment and blindness in advanced cases"
+        ],
+        "prevention": [
+            "Mass drug administration",
+            "Vector control"
+        ],
+        "treatment": [
+            "Ivermectin as part of supervised mass treatment programs"
+        ],
+        "source": "WHO Onchocerciasis Factsheet"
+    },
+    "hiv_aids": {
+        "name": "HIV/AIDS",
+        "symptoms": [
+            "Flu-like symptoms in early stages",
+            "Weight loss",
+            "Recurrent infections",
+            "Long-term immune suppression"
+        ],
+        "prevention": [
+            "Use condoms during sex",
+            "Screening of blood products",
+            "HIV testing and counselling",
+            "Needle exchange programs"
+        ],
+        "treatment": [
+            "Antiretroviral therapy (ART) under medical supervision",
+            "Regular follow-up and adherence to therapy"
+        ],
+        "source": "WHO HIV/AIDS Factsheet"
+    }
 }
 
 # -------------------------
-# Helper: format disease into required template
+# UI Translations & small texts
 # -------------------------
-def format_verified_response(info: dict) -> str:
-    """
-    Output the exact format requested by user, beginning with:
-    'Based on verified health information:'
-    and including sections inline with '•' bullets.
-    """
-    def join_bullets(items):
-        # join items into "• item • item • item"
-        if not items:
-            return ""
-        return " • ".join(items)
+LANGUAGES = {"en": "English"}
+TRANSLATIONS = {
+    "en": {
+        "welcome": "Hello! I'm Africare AI.",
+        "subtitle": "Ask me anything about health. (Verified format)",
+        "online": "Online Mode",
+        "offline": "Offline Mode",
+        "clear": "Clear History",
+        "disclaimer": "This is general health information. For diagnosis and treatment, consult a qualified healthcare provider."
+    }
+}
 
-    symptoms = join_bullets(info.get("symptoms", []))
-    prevention = join_bullets(info.get("prevention", []))
-    treatment = join_bullets(info.get("treatment", []))
-    source = info.get("source", "WHO")
+# -------------------------
+# Theme CSS
+# -------------------------
+def apply_theme(theme):
+    if theme == "Light":
+        bg = "#f7fafc"
+        text = "#0f172a"
+        user_bubble = "#DCF8C6"
+        bot_bubble = "#ffffff"
+    else:
+        bg = "#0b1220"
+        text = "#e6eef8"
+        user_bubble = "#1f2937"
+        bot_bubble = "#0b1220"
 
-    text = (
-        "Based on verified health information:\n\n"
-        f"{info.get('name', '')}\n\n"
-        f"Symptoms: • {symptoms}\n\n"
-        f"Prevention: • {prevention}\n\n"
-        f"Treatment: {treatment}\n\n"
-        f"Source: {source}\n\n"
-        "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
+    st.markdown(
+        f"""
+        <style>
+        body {{ background-color: {bg}; color: {text}; }}
+        .stApp {{ background-color: {bg}; }}
+        .stButton>button {{ background-color: #0F766E; color: white; border-radius: 10px; padding: 8px 16px; }}
+        .chat-user {{ background: {user_bubble}; padding: 10px; border-radius: 12px; }}
+        .chat-bot {{ background: {bot_bubble}; padding: 10px; border-radius: 12px; }}
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
-    return text
 
 # -------------------------
-# Quick internet probe (cached once per session)
+# Internet check (cached per session)
 # -------------------------
-def check_internet(timeout: float = 2.0) -> bool:
-    test_urls = ["https://api.openai.com/v1/models", "https://www.google.com"]
+def check_internet(timeout=2):
+    test_urls = ["https://www.google.com", "https://api.openai.com/v1/models"]
     for url in test_urls:
         try:
             r = requests.get(url, timeout=timeout)
@@ -421,245 +418,261 @@ if "internet_available" not in st.session_state:
     st.session_state.internet_available = check_internet()
 
 # -------------------------
-# LLM Provider keys from env (do not store secrets here)
+# LLM keys from env
 # -------------------------
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+GROQ_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 
 # -------------------------
-# LLM adapters (OpenAI primary; Groq & Gemini placeholders)
+# LLM call wrappers
+# - OpenAI: tries openai package, falls back to HTTP request
+# - Groq/Gemini: placeholders (HTTP examples); adapt to actual provider SDKs if available
 # -------------------------
-def llm_call_openai(system_prompt: str, user_prompt: str, model: str = "gpt-4o-mini") -> str:
-    """
-    Attempt to call OpenAI using openai package if available; otherwise HTTP.
-    """
-    if not OPENAI_API_KEY:
-        raise RuntimeError("OpenAI API key not configured.")
+def call_openai_chat(system_prompt, user_prompt, model="gpt-4o-mini", max_tokens=512):
+    if not OPENAI_KEY:
+        raise RuntimeError("OpenAI key not set.")
     try:
-        # try official package
         import openai
-        openai.api_key = OPENAI_API_KEY
+        openai.api_key = OPENAI_KEY
         resp = openai.ChatCompletion.create(
             model=model,
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-            max_tokens=700,
-            temperature=0.2,
+            max_tokens=max_tokens,
+            temperature=0.1,
         )
         return resp.choices[0].message.content.strip()
     except Exception:
-        # fallback HTTP (simple)
+        # fallback via HTTP
         url = "https://api.openai.com/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"}
         payload = {
             "model": model,
             "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-            "max_tokens": 700,
-            "temperature": 0.2,
+            "max_tokens": max_tokens,
+            "temperature": 0.1
         }
         r = requests.post(url, headers=headers, json=payload, timeout=20)
         r.raise_for_status()
-        d = r.json()
-        return d["choices"][0]["message"]["content"].strip()
+        j = r.json()
+        return j["choices"][0]["message"]["content"].strip()
 
-def llm_call_groq(system_prompt: str, user_prompt: str) -> str:
-    """
-    Placeholder Groq adapter. Adapt when you have exact API spec.
-    """
-    if not GROQ_API_KEY:
-        raise RuntimeError("Groq API key not configured.")
-    # Placeholder: simulate call failure unless you implement the real endpoint
-    raise RuntimeError("Groq adapter is a placeholder. Implement Groq API call per their docs.")
+def call_groq(system_prompt, user_prompt):
+    # Placeholder implementation — replace with Groq SDK/endpoint specifics when available
+    if not GROQ_KEY:
+        raise RuntimeError("Groq key not set.")
+    url = "https://api.groq.cloud/v1/completions"  # example placeholder
+    headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+    payload = {"prompt": system_prompt + "\n\n" + user_prompt, "max_tokens": 512}
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    # Try several possible fields
+    return data.get("text") or data.get("output") or str(data)
 
-def llm_call_gemini(system_prompt: str, user_prompt: str) -> str:
-    """
-    Placeholder Gemini adapter. Adapt to Google PaLM/Gemini API as required.
-    """
-    if not GEMINI_API_KEY:
-        raise RuntimeError("Gemini API key not configured.")
-    # Placeholder: simulate call failure unless you implement the real endpoint
-    raise RuntimeError("Gemini adapter is a placeholder. Implement Gemini API call per their docs.")
-
-def generate_with_providers(system_prompt: str, user_prompt: str, providers_order: list) -> str:
-    """
-    Try providers in order. If none available or calls fail, raise Exception to allow fallback.
-    """
-    last_error = {}
-    for p in providers_order:
-        try:
-            if p == "openai" and OPENAI_API_KEY:
-                return llm_call_openai(system_prompt, user_prompt)
-            if p == "groq" and GROQ_API_KEY:
-                return llm_call_groq(system_prompt, user_prompt)
-            if p == "gemini" and GEMINI_API_KEY:
-                return llm_call_gemini(system_prompt, user_prompt)
-        except Exception as e:
-            last_error[p] = str(e)
-            continue
-    raise RuntimeError(f"No LLM provider succeeded. Errors: {json.dumps(last_error)}")
+def call_gemini(system_prompt, user_prompt):
+    # Placeholder implementation — replace with actual Gemini/PaLM SDK usage
+    if not GEMINI_KEY:
+        raise RuntimeError("Gemini key not set.")
+    # Example: Google's PaLM REST endpoint structure differs — adapt when you have API shape
+    url = "https://generativeapi.googleapis.com/v1beta2/models/text-bison-001:generate"
+    headers = {"Authorization": f"Bearer {GEMINI_KEY}", "Content-Type": "application/json"}
+    payload = {"prompt": {"text": system_prompt + "\n\n" + user_prompt}, "maxOutputTokens": 512}
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    if "candidates" in data and len(data["candidates"]) > 0:
+        return data["candidates"][0].get("content", "").strip()
+    return str(data)
 
 # -------------------------
-# Utility: try to find disease key in user query
+# Utility: find disease in dataset (simple matching)
 # -------------------------
-def find_disease_in_query(query: str) -> Optional[str]:
+def find_disease_in_dataset(query):
     q = query.lower()
-    # Exact key names
     for key, info in DISEASE_DATASET.items():
         if key in q or info["name"].lower() in q:
-            return key
-    # simple token matching (words)
-    tokens = q.split()
-    for key, info in DISEASE_DATASET.items():
-        for tok in tokens:
-            if tok and tok in key:
-                return key
+            return info
     return None
 
 # -------------------------
-# Sidebar UI
+# Formatter: produce the exact template text for a disease info dict
+# -------------------------
+def format_verified_health(info):
+    # Format lists into bullet strings separated by " • "
+    symptoms = " • ".join(info["symptoms"])
+    prevention = " • ".join(info["prevention"])
+    treatment = " • ".join(info["treatment"])
+    text = (
+        "Based on verified health information:\n"
+        f"{info['name']}\n\n"
+        f"Symptoms: • {symptoms}\n\n"
+        f"Prevention: • {prevention}\n\n"
+        f"Treatment: {' '.join(info['treatment']) if isinstance(info['treatment'], list) and len(info['treatment'])==1 else ' • '.join(info['treatment'])}\n\n"
+        f"Source: {info.get('source','WHO')}\n\n"
+        "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
+    )
+    return text
+
+# -------------------------
+# Main responder (tries providers in order, falls back to dataset)
+# -------------------------
+def generate_response(user_query, providers_order, force_offline=False, lang="en"):
+    # First check dataset match
+    dataset_info = find_disease_in_dataset(user_query)
+    # If forced offline or no provider keys, or internet not available => offline behavior
+    internet_ok = st.session_state.internet_available
+    if force_offline or not internet_ok or not (OPENAI_KEY or GROQ_KEY or GEMINI_KEY):
+        if dataset_info:
+            return format_verified_health(dataset_info)  # exact dataset usage
+        else:
+            # If not in dataset and offline, return safe generic instruction
+            return (
+                "Based on verified health information:\n"
+                f"{user_query.strip().capitalize()}\n\n"
+                "Symptoms: • Information not available in offline dataset.\n\n"
+                "Prevention: • Information not available in offline dataset.\n\n"
+                "Treatment: Please consult a qualified healthcare provider.\n\n"
+                "Source: Local offline dataset (no online sources available)\n\n"
+                "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
+            )
+
+    # Online path: try providers in order
+    last_error = None
+    for p in providers_order:
+        p = p.lower()
+        try:
+            if p == "openai" and OPENAI_KEY:
+                text = call_openai_chat(SYSTEM_PROMPT, user_query)
+                # If dataset exists, prefer dataset-formatted text — but the system prompt instructs model to follow template
+                if dataset_info:
+                    # to be safe, enforce dataset content: return dataset format
+                    return format_verified_health(dataset_info)
+                return text
+            if p == "groq" and GROQ_KEY:
+                text = call_groq(SYSTEM_PROMPT, user_query)
+                if dataset_info:
+                    return format_verified_health(dataset_info)
+                return text
+            if p == "gemini" and GEMINI_KEY:
+                text = call_gemini(SYSTEM_PROMPT, user_query)
+                if dataset_info:
+                    return format_verified_health(dataset_info)
+                return text
+        except Exception as e:
+            last_error = str(e)
+            # try next provider
+            continue
+
+    # If no provider succeeded, fallback to dataset or generic
+    if dataset_info:
+        return format_verified_health(dataset_info)
+    # fallback generic
+    return (
+        "Based on verified health information:\n"
+        f"{user_query.strip().capitalize()}\n\n"
+        "Symptoms: • Information not available in offline dataset.\n\n"
+        "Prevention: • Information not available in offline dataset.\n\n"
+        "Treatment: Please consult a qualified healthcare provider.\n\n"
+        "Source: No online provider available\n\n"
+        "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
+    )
+
+# -------------------------
+# Streamlit UI: Sidebar
 # -------------------------
 with st.sidebar:
-    st.image("africare.jpg", width=130)
+    st.image("africare.jpg", width=140)
     st.title("Africare AI")
     st.caption("Your African Health Companion")
-    lang_code = st.selectbox("Language", options=list(LANGUAGES.keys()), format_func=lambda x: LANGUAGES[x])
+
+    lang = st.selectbox("Language", options=list(LANGUAGES.keys()), format_func=lambda x: LANGUAGES[x])
+
     theme = st.radio("Theme", ["Light", "Dark"], index=0)
     apply_theme(theme)
 
-    # Connection indicator + override
     st.markdown("### Connection")
     if st.session_state.internet_available:
         st.success("Internet: Available")
     else:
         st.warning("Internet: Not detected")
 
-    conn_override = st.selectbox("Connection Mode", options=["Auto-detect", "Force Online", "Force Offline"])
-    if conn_override == "Force Online":
-        is_offline = False
-    elif conn_override == "Force Offline":
-        is_offline = True
+    conn_mode = st.selectbox("Connection Mode", ["Auto-detect", "Force Online", "Force Offline"])
+    if conn_mode == "Force Online":
+        force_offline = False
+    elif conn_mode == "Force Offline":
+        force_offline = True
     else:
-        is_offline = not st.session_state.internet_available
+        # Auto-detect: offline if internet not available
+        force_offline = False if st.session_state.internet_available else True
 
     st.divider()
-    st.subheader("LLM Providers (optional)")
-    st.markdown("Set your API keys as env vars: `OPENAI_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`")
+    st.subheader("LLM Providers (optional keys)")
+    st.markdown("Set API keys as environment variables: `OPENAI_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`.")
     provider_order = st.multiselect(
-        "Providers order (tried top → bottom)", ["openai", "gemini", "groq"], default=["openai", "gemini", "groq"]
+        "Provider order (tried top → bottom)",
+        options=["openai", "gemini", "groq"],
+        default=["openai", "gemini", "groq"]
     )
+    if not provider_order:
+        provider_order = ["openai", "gemini", "groq"]
 
     st.divider()
     if st.button(TRANSLATIONS["en"]["clear"]):
         st.session_state.messages = []
         st.success("History cleared!")
 
+    st.divider()
     st.subheader("Verified Sources")
     st.markdown("- WHO Africa\n- Ghana Health Service\n- CDC Africa\n- UNICEF")
 
 # -------------------------
-# Main chat UI
+# Main area
 # -------------------------
-t = TRANSLATIONS.get(lang_code, TRANSLATIONS["en"])
+t = TRANSLATIONS["en"]
 st.title(t["welcome"])
 st.write(t["subtitle"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Render messages
+# display chat
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    role = msg.get("role", "assistant")
+    content = msg.get("content", "")
+    if role == "user":
+        st.markdown(f"<div class='chat-user'><b>You:</b><br/>{content}</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div class='chat-bot'><b>Africare:</b><br/>{content}</div>", unsafe_allow_html=True)
 
 # Chat input
-if prompt := st.chat_input("Type your health question..."):
+prompt = st.chat_input("Type your health question (e.g., 'What is malaria?')...")
+if prompt:
     # Save user message
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    st.experimental_rerun()  # cause UI to show user msg immediately (we'll handle response next rerun)
 
-    # Assistant processing
-    with st.chat_message("assistant"):
-        with st.spinner("Africare is thinking..."):
-            time.sleep(0.6)
+# On rerun: if last message is user and has no assistant reply, generate it
+def last_msg_needs_reply():
+    msgs = st.session_state.messages
+    if not msgs:
+        return False
+    # If last is user or last assistant was before user, reply
+    last = msgs[-1]
+    if last["role"] == "user":
+        # check if there's an assistant next — not
+        return True
+    return False
 
-            # Priority: if the user explicitly asks for a disease that exists in dataset -> return formatted dataset answer
-            disease_key = find_disease_in_query(prompt)
+if last_msg_needs_reply():
+    user_text = st.session_state.messages[-1]["content"]
+    with st.spinner("Africare is thinking..."):
+        # generate
+        response_text = generate_response(user_text, providers_order=provider_order, force_offline=force_offline, lang=lang)
+        time.sleep(0.6)
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
+        st.experimental_rerun()
 
-            # If offline forced OR (auto and no internet) -> use dataset fallback
-            if is_offline:
-                if disease_key:
-                    response = format_verified_response(DISEASE_DATASET[disease_key])
-                else:
-                    # Generic offline guidance
-                    response = (
-                        "Based on verified health information:\n\n"
-                        "General Health Guidance\n\n"
-                        "Symptoms: • Varies by condition — monitor fever, severe pain, breathing difficulty\n\n"
-                        "Prevention: • Maintain hygiene • Safe water • Vaccination where available • Avoid vectors\n\n"
-                        "Treatment: Seek medical care. Local clinics and district hospitals can help with diagnosis and treatment.\n\n"
-                        "Source: WHO / Local health authorities\n\n"
-                        "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
-                    )
-            else:
-                # Online: attempt provider(s) if keys and provider order exist; otherwise, if disease in dataset use dataset
-                try:
-                    if disease_key and not any([OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY]):
-                        # No keys at all -> use dataset
-                        response = format_verified_response(DISEASE_DATASET[disease_key])
-                    else:
-                        # Build LLM user prompt that asks for the verified structured output and prefers dataset info if available
-                        user_prompt = (
-                            "User question:\n\n"
-                            f"{prompt}\n\n"
-                            "If this is about a known disease and you have authoritative data (WHO/CDC), respond using the exact format:\n\n"
-                            "Based on verified health information:\n\n"
-                            "[Condition Name]\n\n"
-                            "Symptoms: • item • item\n\n"
-                            "Prevention: • item • item\n\n"
-                            "Treatment: text\n\n"
-                            "Source: authoritative source\n\n"
-                            "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider.\n\n"
-                            "If you can, prefer the local dataset facts. If the condition is not in the dataset, produce a concise WHO-style answer."
-                        )
-                        # Choose provider order from sidebar, with sensible default
-                        order = provider_order or ["openai", "gemini", "groq"]
-                        try:
-                            llm_text = generate_with_providers(SYSTEM_PROMPT, user_prompt, order)
-                            # Basic sanity: if LLM returned something short or appears irrelevant, fallback to dataset if possible
-                            if llm_text and len(llm_text) > 30:
-                                response = llm_text
-                            elif disease_key:
-                                response = format_verified_response(DISEASE_DATASET[disease_key])
-                            else:
-                                response = (
-                                    "Based on verified health information:\n\n"
-                                    "General Health Guidance\n\n"
-                                    "Symptoms: • Varies by condition — monitor fever, severe pain, breathing difficulty\n\n"
-                                    "Prevention: • Maintain hygiene • Safe water • Vaccination where available • Avoid vectors\n\n"
-                                    "Treatment: Seek medical care. Local clinics and district hospitals can help with diagnosis and treatment.\n\n"
-                                    "Source: WHO / Local health authorities\n\n"
-                                    "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
-                                )
-                        except Exception as e:
-                            # LLM failed -> fallback to dataset or generic
-                            if disease_key:
-                                response = format_verified_response(DISEASE_DATASET[disease_key])
-                            else:
-                                response = (
-                                    "Based on verified health information:\n\n"
-                                    "General Health Guidance\n\n"
-                                    "Symptoms: • Varies by condition — monitor fever, severe pain, breathing difficulty\n\n"
-                                    "Prevention: • Maintain hygiene • Safe water • Vaccination where available • Avoid vectors\n\n"
-                                    "Treatment: Seek medical care. Local clinics and district hospitals can help with diagnosis and treatment.\n\n"
-                                    "Source: WHO / Local health authorities\n\n"
-                                    "⚠️ Note: This is general health information. For diagnosis and treatment, please consult a qualified healthcare provider."
-                                )
-
-            # Append and display assistant message
-            st.markdown(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
-
-# Footer
+# footer
 st.markdown("---")
-st.caption(TRANSLATIONS["en"]["disclaimer"])
+st.caption(t["disclaimer"])
