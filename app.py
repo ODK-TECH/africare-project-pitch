@@ -1,6 +1,5 @@
 """
 Africare - Streamlit AI Health Assistant
-Place africare-log.jpg beside this file.
 Set optional env vars: OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY
 """
 
