@@ -6,8 +6,6 @@
     <title>Africare - Interactive Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -33,13 +31,13 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .nav-link {
-            @apply px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-700 border-b-2 border-transparent transition-colors duration-200;
+            @apply px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-700 border-b-2 border-transparent;
         }
         .nav-link.active {
             @apply border-teal-600 text-teal-700 bg-teal-50;
         }
         .sub-nav-link {
-            @apply px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-200 border-2 border-transparent transition-colors duration-200;
+            @apply px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-200 border-2 border-transparent;
         }
         .sub-nav-link.active {
             @apply bg-white text-teal-700 border-slate-300 shadow-sm;
@@ -50,107 +48,63 @@
         .hidden {
             display: none;
         }
-        /* Chat UI Styling */
-        .chat-bubble {
-            max-width: 80%;
-            padding: 10px 15px;
-            border-radius: 15px;
-            margin-bottom: 10px;
-            position: relative;
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .chat-user {
-            background-color: #dcfce7; /* Green-100 */
-            color: #166534;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-        .chat-ai {
-            background-color: #f1f5f9; /* Slate-100 */
-            color: #334155;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        .typing-indicator span {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            background-color: #cbd5e1;
-            border-radius: 50%;
-            animation: typing 1.4s infinite ease-in-out both;
-            margin: 0 1px;
-        }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 flex flex-col min-h-screen">
+<body class="bg-slate-100 text-slate-800">
 
     <!-- 
-        Updated for Gemini API Integration:
-        - Added "Try AI ✨" to Navigation.
-        - Created new #page-demo section.
-        - Implemented 'Africare Assistant' Chat UI using Gemini.
-        - Implemented 'Myth Buster' Tool using Gemini.
-        - Added JS logic for API calls with backoff.
+        Chosen Palette: Tailwind Teal (accent), Amber (secondary accent), and Slate (text/backgrounds)
+        Application Structure Plan: A single-page application (SPA) with a top navigation bar. The nav links ("Home", "Problem", "Solution", "Impact", "Roadmap") control the visibility of corresponding content sections. This is superior to a linear report as it allows users to non-linearly explore the topics they are most interested in. The "Solution" section uses further sub-navigation (tabs) to break down the product's features, 'how it works', and value proposition, which is much more digestible for a user than a single, long text block.
+        Visualization & Content Choices:
+        - Report Info: Problem Stat (1:5000) -> Goal: Inform/Compare -> Viz: Chart.js Bar Chart. Interaction: Rendered on page load. Justification: A bar chart provides a stark, immediate visual comparison of the doctor-to-patient ratio, which is more impactful than text alone.
+        - Report Info: Target Audience -> Goal: Inform -> Viz: HTML text blocks. Interaction: JS-powered buttons ("Rural", "Low Literacy") to toggle descriptive text. Justification: Makes the user an active participant in revealing the information, increasing engagement.
+        - Report Info: "How It Works" Diagram -> Goal: Organize/Inform -> Viz: HTML/CSS Flexbox diagram (3 cards + arrows). Interaction: None. Justification: Replaces the static image from the PDF, adhering to the NO SVG/Mermaid rule, while still clearly showing the process flow.
+        - Report Info: Social Impact SDGs -> Goal: Organize/Inform -> Viz: HTML/CSS Grid of cards. Interaction: Hover effects. Justification: A clean, modern, and scannable layout to present the four key impact areas.
+        - Report Info: Future Vision -> Goal: Inform -> Viz: HTML/CSS timeline-style layout. Interaction: None. Justification: Clearly presents the two-phase roadmap.
+        CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
     -->
 
     <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <!-- LOGO SECTION -->
-                <div class="flex-shrink-0 flex items-center cursor-pointer" onclick="document.querySelector('[data-page=page-home]').click()">
-                    <img src="logo.jpg" alt="Africare Logo" class="h-10 w-auto mr-3 rounded-full border border-teal-100 shadow-sm" onerror="this.style.display='none'">
+                <!-- UPDATED LOGO SECTION -->
+                <div class="flex-shrink-0 flex items-center">
+                    <!-- Placeholder for the logo. Ideally, rename your uploaded file to 'logo.jpg' -->
+                    <img src="africare.jpg" alt="Africare Logo" class="h-10 w-auto mr-3 rounded-full border border-teal-100 shadow-sm" onerror="this.style.display='none'">
                     <span class="text-2xl font-bold text-teal-700">Africare</span>
                 </div>
-                <div class="hidden md:ml-6 md:flex md:space-x-4">
+                <div class="hidden sm:ml-6 sm:flex sm:space-x-4">
                     <a href="#" class="nav-link active" data-page="page-home">Home</a>
                     <a href="#" class="nav-link" data-page="page-problem">The Problem</a>
                     <a href="#" class="nav-link" data-page="page-solution">The Solution</a>
                     <a href="#" class="nav-link" data-page="page-impact">Impact</a>
                     <a href="#" class="nav-link" data-page="page-roadmap">Roadmap</a>
-                    <!-- New AI Feature Link -->
-                    <a href="#" class="nav-link text-amber-600 border-amber-500 bg-amber-50 hover:bg-amber-100" data-page="page-demo"><i class="fa-solid fa-sparkles mr-1"></i> Try AI</a>
                 </div>
-                <div class="md:hidden flex items-center">
-                    <select id="mobile-nav" class="block w-full max-w-[150px] rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm">
+                <div class="sm:hidden">
+                    <select id="mobile-nav" class="block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
                         <option value="page-home">Home</option>
                         <option value="page-problem">The Problem</option>
                         <option value="page-solution">The Solution</option>
                         <option value="page-impact">Impact</option>
                         <option value="page-roadmap">Roadmap</option>
-                        <option value="page-demo">✨ Try AI Demo</option>
                     </select>
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="container mx-auto p-4 sm:p-6 lg:p-8 flex-grow">
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
 
         <!-- ===== HOME SECTION ===== -->
         <section id="page-home" class="page-content">
             <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div class="p-6 md:p-10">
                     <h1 class="text-4xl md:text-5xl font-extrabold text-teal-800">Bridging the Health Information Gap</h1>
-                    <p class="mt-4 text-lg text-slate-600">This interactive report explores **Africare**, an innovative AI-powered solution designed to address critical healthcare challenges in rural African communities. Navigate through the sections to understand the problem we're solving, our unique solution, its social impact, and our vision for the future.</p>
-                    <div class="mt-8">
-                         <button onclick="document.querySelector('[data-page=page-demo]').click()" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors">
-                            <i class="fa-solid fa-robot mr-2"></i> Test the AI Prototype
-                        </button>
-                    </div>
+                    <p class="mt-4 text-lg text-slate-600">This interactive report explores Africare, an innovative AI-powered solution designed to address critical healthcare challenges in rural African communities. Navigate through the sections to understand the problem we're solving, our unique solution, its social impact, and our vision for the future.</p>
                 </div>
                 <div class="bg-slate-50 p-6 md:p-10 border-t border-slate-200">
                     <h2 class="text-2xl font-bold text-slate-700">About the Project</h2>
-                    <p class="mt-3 text-slate-600">Presented at **DataHER AFRICA**, this project outlines a new approach to healthcare accessibility. By leveraging AI technology that works offline and understands local languages, we aim to empower individuals with reliable, immediate health information, reducing dependency on an over-stretched medical system and combating dangerous misinformation.</p>
+                    <p class="mt-3 text-slate-600">Presented at DataHER AFRICA, this project outlines a new approach to healthcare accessibility. By leveraging AI technology that works offline and understands local languages, we aim to empower individuals with reliable, immediate health information, reducing dependency on an over-stretched medical system and combating dangerous misinformation.</p>
                 </div>
             </div>
         </section>
@@ -173,26 +127,25 @@
                     <p class="text-center text-slate-600 mt-2">Our solution is targeted at the most vulnerable populations. Click to learn more.</p>
                     
                     <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
-                        <button class="audience-btn px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-75 transition-colors" data-target="audience-rural">
+                        <button class="audience-btn px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-75" data-target="audience-rural">
                             Rural Communities
                         </button>
-                        <button class="audience-btn px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75 transition-colors" data-target="audience-literacy">
+                        <button class="audience-btn px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75" data-target="audience-literacy">
                             Individuals with Low Literacy
                         </button>
                     </div>
 
-                    <div id="audience-display" class="mt-6 p-6 bg-slate-50 rounded-lg min-h-[100px] border border-slate-200 transition-all duration-300">
-                        <p class="text-slate-500 text-center italic">Select a group above to see the details.</p>
+                    <div id="audience-display" class="mt-6 p-6 bg-slate-50 rounded-lg min-h-[100px] border border-slate-200">
+                        <p class="text-slate-500 text-center">Select a group to see the details.</p>
                     </div>
 
-                    <!-- Hidden Content Sources -->
-                    <div id="audience-rural" class="hidden">
-                        <h3 class="font-bold text-lg text-amber-700"><i class="fa-solid fa-house-chimney-medical mr-2"></i>People in Rural or Underserved Communities</h3>
+                    <div id="audience-rural" class="audience-text hidden">
+                        <h3 class="font-bold text-lg text-amber-700">People in Rural or Underserved Communities</h3>
                         <p class="mt-2 text-slate-600">This group has limited or non-existent physical access to clinics and doctors. Long distances, lack of transport, and high costs create a barrier to receiving timely medical advice.</p>
                     </div>
 
-                    <div id="audience-literacy" class="hidden">
-                        <h3 class="font-bold text-lg text-teal-700"><i class="fa-solid fa-book-open-reader mr-2"></i>Individuals with Low Literacy</h3>
+                    <div id="audience-literacy" class="audience-text hidden">
+                        <h3 class="font-bold text-lg text-teal-700">Individuals with Low Literacy</h3>
                         <p class="mt-2 text-slate-600">Even when information is available online, it's often in English or French and text-heavy. Our local-language, voice-capable (future) support is designed specifically to include this often-overlooked group.</p>
                     </div>
                 </div>
@@ -206,7 +159,7 @@
                     <h1 class="text-3xl md:text-4xl font-bold text-teal-800">Our Solution: Africare</h1>
                     <p class="mt-4 text-lg text-slate-600">Africare is an AI-powered community health chatbot built from the ground up to meet the unique challenges of rural Africa. It's not just another app; it's a lifeline. Explore the components of our solution below.</p>
 
-                    <div class="my-8 bg-slate-100 p-2 rounded-lg flex flex-col sm:flex-row justify-center gap-2">
+                    <div class="my-8 bg-slate-100 p-4 rounded-lg flex flex-col sm:flex-row justify-center gap-2">
                         <button class="solution-nav-link active" data-target="solution-overview">Overview</button>
                         <button class="solution-nav-link" data-target="solution-features">Key Features</button>
                         <button class="solution-nav-link" data-target="solution-howitworks">How It Works</button>
@@ -215,14 +168,7 @@
                     <div id="solution-overview" class="solution-content">
                         <h2 class="text-2xl font-bold text-slate-700">What is Africare?</h2>
                         <p class="mt-3 text-slate-600">Africare is an intelligent chatbot that provides immediate, reliable health advice. It is designed to function in the real-world conditions of rural communities, bringing the knowledge of a doctor to a user's phone, anytime, anywhere.</p>
-                        <div class="mt-6 bg-teal-50 border border-teal-100 rounded-lg p-8 flex items-center justify-center min-h-[300px]">
-                             <!-- Conceptual illustration replacement -->
-                             <div class="text-center">
-                                <i class="fa-solid fa-mobile-screen-button text-6xl text-teal-400 mb-4"></i>
-                                <h3 class="text-xl font-bold text-teal-800">AI in your Pocket</h3>
-                                <p class="text-slate-500 mt-2">Accessible via Smartphone, Web, and soon SMS.</p>
-                             </div>
-                        </div>
+                        <img src="https://placehold.co/1000x500/E0F2F1/0D9488?text=Africare+App+Mockup" alt="Africare app mockup" class="mt-6 rounded-lg shadow-md w-full object-cover" onerror="this.src='https://placehold.co/1000x500/E0F2F1/0D9488?text=App+Mockup+Placeholder'">
                     </div>
 
                     <div id="solution-features" class="solution-content hidden">
@@ -230,28 +176,28 @@
                         <p class="mt-3 text-slate-600">Our features directly address the primary barriers to healthcare access:</p>
                         <ul class="mt-6 space-y-4">
                             <li class="flex items-start gap-4">
-                                <span class="text-2xl text-teal-600 mt-1"><i class="fa-solid fa-check-circle"></i></span>
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
                                 <div>
                                     <h3 class="font-semibold text-lg">Offline Operation</h3>
                                     <p class="text-slate-600">Ensures help is available even without a stable or affordable internet connection.</p>
                                 </div>
                             </li>
                             <li class="flex items-start gap-4">
-                                <span class="text-2xl text-teal-600 mt-1"><i class="fa-solid fa-check-circle"></i></span>
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
                                 <div>
                                     <h3 class="font-semibold text-lg">Local Language Support</h3>
                                     <p class="text-slate-600">Breaks down language barriers that prevent people from understanding complex medical advice.</p>
                                 </div>
                             </li>
                             <li class="flex items-start gap-4">
-                                <span class="text-2xl text-teal-600 mt-1"><i class="fa-solid fa-check-circle"></i></span>
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
                                 <div>
                                     <h3 class="font-semibold text-lg">Reduces Misinformation</h3>
                                     <p class="text-slate-600">Provides medically verified answers, combating dangerous self-medication and rumors.</p>
                                 </div>
                             </li>
                             <li class="flex items-start gap-4">
-                                <span class="text-2xl text-teal-600 mt-1"><i class="fa-solid fa-check-circle"></i></span>
+                                <span class="text-2xl text-teal-600 mt-1">&#10003;</span>
                                 <div>
                                     <h3 class="font-semibold text-lg">Empowers Individuals</h3>
                                     <p class="text-slate-600">Allows people to make safer, more informed health decisions for themselves and their families.</p>
@@ -265,114 +211,30 @@
                         <p class="mt-3 text-slate-600">The technology is complex, but the user experience is simple and intuitive.</p>
                         <div class="mt-8 flex flex-col md:flex-row items-center justify-center gap-4">
                             
-                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-teal-500 text-center hover:shadow-lg transition-shadow">
-                                <div class="text-4xl text-teal-600 mb-2"><i class="fa-regular fa-comment-dots"></i></div>
-                                <h3 class="mt-3 text-xl font-bold">1. Ask Question</h3>
+                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-teal-500 text-center">
+                                <div class="text-4xl text-teal-600">1</div>
+                                <h3 class="mt-3 text-xl font-bold">Ask Question</h3>
                                 <p class="mt-2 text-slate-600">Users initiate the interaction by asking their health question in their preferred language.</p>
                             </div>
 
-                            <div class="text-2xl text-slate-300 hidden md:block"><i class="fa-solid fa-arrow-right"></i></div>
-                            <div class="text-2xl text-slate-300 md:hidden my-2"><i class="fa-solid fa-arrow-down"></i></div>
+                            <div class="text-4xl text-slate-400 mx-4 hidden md:block">&rarr;</div>
+                            <div class="text-4xl text-slate-400 my-4 md:hidden">&darr;</div>
 
-                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-amber-500 text-center hover:shadow-lg transition-shadow">
-                                <div class="text-4xl text-amber-600 mb-2"><i class="fa-solid fa-server"></i></div>
-                                <h3 class="mt-3 text-xl font-bold">2. Verify</h3>
+                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-amber-500 text-center">
+                                <div class="text-4xl text-amber-600">2</div>
+                                <h3 class="mt-3 text-xl font-bold">Verify</h3>
                                 <p class="mt-2 text-slate-600">Our AI analyzes the query against a dedicated database of verified medical protocols and facts.</p>
                             </div>
 
-                            <div class="text-2xl text-slate-300 hidden md:block"><i class="fa-solid fa-arrow-right"></i></div>
-                            <div class="text-2xl text-slate-300 md:hidden my-2"><i class="fa-solid fa-arrow-down"></i></div>
+                            <div class="text-4xl text-slate-400 mx-4 hidden md:block">&rarr;</div>
+                            <div class="text-4xl text-slate-400 my-4 md:hidden">&darr;</div>
 
-                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-teal-500 text-center hover:shadow-lg transition-shadow">
-                                <div class="text-4xl text-teal-600 mb-2"><i class="fa-solid fa-user-doctor"></i></div>
-                                <h3 class="mt-3 text-xl font-bold">3. Instant Answer</h3>
+                            <div class="flex-1 w-full p-6 bg-slate-50 rounded-lg shadow-md border-t-4 border-teal-500 text-center">
+                                <div class="text-4xl text-teal-600">3</div>
+                                <h3 class="mt-3 text-xl font-bold">Instant Answer</h3>
                                 <p class="mt-2 text-slate-600">Users receive an immediate, clear response, providing essential health insights when needed most.</p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== NEW AI DEMO SECTION ===== -->
-        <section id="page-demo" class="page-content hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                <!-- Chatbot Demo -->
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col h-[600px]">
-                    <div class="bg-teal-700 p-4 flex items-center justify-between">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-teal-700 font-bold mr-3">
-                                <i class="fa-solid fa-robot"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-white font-bold text-lg">Africare Assistant</h2>
-                                <p class="text-teal-100 text-xs">Powered by Gemini AI ✨</p>
-                            </div>
-                        </div>
-                        <button id="clear-chat" class="text-teal-200 hover:text-white text-sm" title="Reset Chat"><i class="fa-solid fa-rotate-right"></i></button>
-                    </div>
-                    
-                    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-2">
-                        <!-- Initial Message -->
-                        <div class="chat-bubble chat-ai shadow-sm">
-                            <p>Hello! I am the Africare assistant. I can help you with basic health information in simple language. How are you feeling today?</p>
-                            <p class="text-xs text-slate-400 mt-2"><em>Note: I am an AI, not a doctor.</em></p>
-                        </div>
-                    </div>
-                    
-                    <div class="p-4 bg-white border-t border-slate-200">
-                        <div class="flex gap-2">
-                            <input type="text" id="chat-input" class="flex-1 rounded-full border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 px-4 py-2" placeholder="Describe your symptoms...">
-                            <button id="send-chat" class="bg-teal-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-teal-700 shadow-md transition-transform active:scale-95">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-                        </div>
-                        <p class="text-xs text-center text-slate-400 mt-2">Prototype Mode: Responses are generated by AI and verified against general knowledge.</p>
-                    </div>
-                </div>
-
-                <!-- Myth Buster Tool -->
-                <div class="flex flex-col gap-6">
-                    <div class="bg-white rounded-lg shadow-lg p-6 flex-1">
-                        <div class="flex items-center mb-4">
-                            <div class="bg-amber-100 p-3 rounded-full mr-4 text-amber-600">
-                                <i class="fa-solid fa-shield-halved text-2xl"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-2xl font-bold text-slate-800">Health Myth Buster</h2>
-                                <p class="text-slate-600">Combat misinformation with AI verification.</p>
-                            </div>
-                        </div>
-                        
-                        <p class="text-slate-600 mb-4">Enter a health rumor or home remedy you've heard. The AI will analyze it for safety.</p>
-                        
-                        <div class="relative">
-                            <textarea id="myth-input" rows="3" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 p-3 pr-12 resize-none" placeholder="e.g., 'Does drinking salt water cure headaches?'"></textarea>
-                            <div class="absolute bottom-3 right-3 text-slate-400 text-xs">
-                                <i class="fa-solid fa-sparkles"></i>
-                            </div>
-                        </div>
-                        
-                        <button id="verify-myth" class="w-full mt-4 bg-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-amber-600 shadow-md transition-colors flex items-center justify-center gap-2">
-                            <span>Verify Statement</span>
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
-
-                        <div id="myth-result" class="mt-6 hidden">
-                            <!-- Results injected here -->
-                        </div>
-                    </div>
-
-                    <!-- Tech Spec Card -->
-                    <div class="bg-slate-800 text-white rounded-lg shadow-lg p-6">
-                        <h3 class="font-bold text-lg mb-2"><i class="fa-solid fa-code mr-2"></i>How this Demo Works</h3>
-                        <p class="text-slate-300 text-sm mb-4">This prototype uses the <strong>Gemini 2.5 Flash</strong> model to process natural language.</p>
-                        <ul class="text-sm space-y-2 text-slate-300">
-                            <li><i class="fa-solid fa-bolt text-amber-400 mr-2"></i><strong>Low Latency:</strong> Optimized for quick responses on edge networks.</li>
-                            <li><i class="fa-solid fa-brain text-teal-400 mr-2"></i><strong>Context Aware:</strong> System prompts ensure the AI acts as a supportive health assistant.</li>
-                            <li><i class="fa-solid fa-language text-blue-400 mr-2"></i><strong>Multi-lingual:</strong> Try asking questions in Twi or Swahili!</li>
-                        </ul>
                     </div>
                 </div>
             </div>
@@ -386,25 +248,22 @@
                     <p class="mt-4 text-lg text-slate-600">Africare is more than a tool; it's an engine for social change. Our work directly contributes to several UN Sustainable Development Goals (SDGs) by creating a more equitable and healthy future for underserved communities.</p>
 
                     <div class="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-blue-500 shadow-md transform hover:scale-105 transition-transform group">
-                            <h3 class="text-xl font-bold text-blue-700 group-hover:text-blue-800 transition-colors"><i class="fa-solid fa-heart-pulse mr-2"></i>SDG 3</h3>
-                            <h4 class="font-semibold text-slate-700">Good Health & Well-being</h4>
-                            <p class="mt-2 text-slate-600 text-sm">By providing accessible health information, we directly contribute to better health outcomes.</p>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-blue-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-blue-700">SDG 3: Good Health & Well-being</h3>
+                            <p class="mt-2 text-slate-600">By providing accessible health information, we directly contribute to better health outcomes and well-being.</p>
                         </div>
-                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-red-500 shadow-md transform hover:scale-105 transition-transform group">
-                            <h3 class="text-xl font-bold text-red-700 group-hover:text-red-800 transition-colors"><i class="fa-solid fa-graduation-cap mr-2"></i>SDG 4</h3>
-                            <h4 class="font-semibold text-slate-700">Quality Education</h4>
-                            <p class="mt-2 text-slate-600 text-sm">We educate individuals about their health, empowering them with knowledge.</p>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-red-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-red-700">SDG 4: Quality Education</h3>
+                            <p class="mt-2 text-slate-600">We educate individuals about their health,
+                            empowering them with knowledge.</p>
                         </div>
-                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-purple-500 shadow-md transform hover:scale-105 transition-transform group">
-                            <h3 class="text-xl font-bold text-purple-700 group-hover:text-purple-800 transition-colors"><i class="fa-solid fa-scale-balanced mr-2"></i>SDG 10</h3>
-                            <h4 class="font-semibold text-slate-700">Reduced Inequalities</h4>
-                            <p class="mt-2 text-slate-600 text-sm">Our solution democratizes access to health advice, reducing the urban-rural gap.</p>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-purple-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-purple-700">SDG 10: Reduced Inequalities</h3>
+                            <p class="mt-2 text-slate-600">Our solution democratizes access to health advice, reducing a key inequality gap.</p>
                         </div>
-                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-orange-500 shadow-md transform hover:scale-105 transition-transform group">
-                            <h3 class="text-xl font-bold text-orange-700 group-hover:text-orange-800 transition-colors"><i class="fa-solid fa-industry mr-2"></i>SDG 9</h3>
-                            <h4 class="font-semibold text-slate-700">Industry & Innovation</h4>
-                            <p class="mt-2 text-slate-600 text-sm">Building innovative, resilient infrastructure for community health.</p>
+                        <div class="bg-slate-50 rounded-lg p-6 border-l-4 border-orange-500 shadow-md transform hover:scale-105 transition-transform">
+                            <h3 class="text-xl font-bold text-orange-700">SDG 9: Industry & Innovation</h3>
+                            <p class="mt-2 text-slate-600">We are building innovative, accessible, and resilient infrastructure for community health.</p>
                         </div>
                     </div>
                 </div>
@@ -419,19 +278,16 @@
                     <p class="mt-4 text-lg text-slate-600">This project is the first step. Our vision is to create a truly universal platform for health information. The next phases of our roadmap focus on maximum accessibility, ensuring we can reach every individual, regardless of the technology they own.</p>
                     
                     <div class="mt-10 max-w-2xl mx-auto">
-                        <div class="flex flex-col md:flex-row gap-8 relative">
-                            <!-- Connector Line (Desktop) -->
-                            <div class="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-slate-200 -z-10 transform -translate-y-1/2"></div>
-
-                            <div class="flex-1 text-center p-6 bg-white rounded-lg shadow-md border-b-4 border-amber-500 transform hover:-translate-y-2 transition-transform">
-                                <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 font-bold text-xl">1</div>
-                                <h3 class="text-xl font-bold text-amber-700 mt-2">SMS Integration</h3>
-                                <p class="mt-3 text-slate-600 text-sm">Expand the service to work over basic SMS, making it accessible to users with feature phones.</p>
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <div class="flex-1 text-center p-6 bg-slate-50 rounded-lg shadow-md border-b-4 border-amber-500">
+                                <div class_="text-lg font-semibold text-slate-500">Phase 1</div>
+                                <h3 class="text-2xl font-bold text-amber-700 mt-2">SMS Integration and Activation of offline mode</h3>
+                                <p class="mt-3 text-slate-600">Expand the service to work over basic SMS and offline mode will be activated, making it accessible to users with non-smartphones (feature phones) and without data.</p>
                             </div>
-                            <div class="flex-1 text-center p-6 bg-white rounded-lg shadow-md border-b-4 border-teal-500 transform hover:-translate-y-2 transition-transform">
-                                <div class="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4 text-teal-600 font-bold text-xl">2</div>
-                                <h3 class="text-xl font-bold text-teal-700 mt-2">Voice-to-Text</h3>
-                                <p class="mt-3 text-slate-600 text-sm">Implement full voice recognition to provide accessibility for individuals with low literacy.</p>
+                            <div class="flex-1 text-center p-6 bg-slate-50 rounded-lg shadow-md border-b-4 border-teal-500">
+                                <div class="text-lg font-semibold text-slate-500">Phase 2</div>
+                                <h3 class="text-2xl font-bold text-teal-700 mt-2">Voice-to-Text and Text-to-Voice</h3>
+                                <p class="mt-3 text-slate-600">Implement full voice recognition and text-to-speech to provide full accessibility for individuals with low literacy or visual impairments.</p>
                             </div>
                         </div>
                     </div>
@@ -440,60 +296,25 @@
         </section>
     </main>
 
-    <footer class="text-center py-8 mt-10 bg-white border-t border-slate-200">
+    <footer class="text-center py-8 mt-10">
         <p class="text-slate-500 text-sm">Africare Interactive Report | DataHER AFRICA | November 2025</p>
-        <p class="text-slate-400 text-xs mt-1">Powered by Gemini API</p>
     </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            /* --- GEMINI API SETUP --- */
-            const apiKey = ""; // API Key injected by environment or set manually
-            
-            async function callGemini(prompt, systemInstruction = "") {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                
-                const payload = {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    systemInstruction: { parts: [{ text: systemInstruction }] }
-                };
-
-                // Exponential backoff strategy
-                const delays = [1000, 2000, 4000, 8000, 16000];
-                for (let i = 0; i < delays.length; i++) {
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        if (!response.ok) {
-                            if (response.status === 429) throw new Error('Too Many Requests'); // Retry on rate limit
-                            const errText = await response.text();
-                            throw new Error(`API Error: ${response.status} ${errText}`);
-                        }
-
-                        const data = await response.json();
-                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
-                    } catch (error) {
-                        if (i === delays.length - 1) {
-                            console.error("Gemini API failed after retries:", error);
-                            return "Error: Unable to connect to the AI service. Please try again later.";
-                        }
-                        await new Promise(resolve => setTimeout(resolve, delays[i]));
-                    }
-                }
-            }
-
-            /* --- CHART JS SETUP --- */
             const chartData = {
                 labels: ['Doctors', 'Population'],
                 datasets: [{
                     label: 'Ratio',
                     data: [1, 5000],
-                    backgroundColor: ['#0d9488', '#f59e0b'],
-                    borderColor: ['#0f766e', '#d97706'],
+                    backgroundColor: [
+                        '#0d9488', // teal-600
+                        '#f59e0b'  // amber-500
+                    ],
+                    borderColor: [
+                        '#0f766e', // teal-700
+                        '#d97706'  // amber-600
+                    ],
                     borderWidth: 1
                 }]
             };
@@ -505,22 +326,36 @@
                     y: {
                         beginAtZero: true,
                         type: 'logarithmic',
-                        ticks: { color: '#475569' },
-                        grid: { color: '#e2e8f0' }
+                        ticks: {
+                            color: '#475569'
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        }
                     },
                     x: {
-                        ticks: { color: '#475569' },
-                        grid: { display: false }
+                        ticks: {
+                            color: '#475569'
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 },
                 plugins: {
-                    legend: { display: false },
+                    legend: {
+                        display: false
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
                                 let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed.y !== null) label += context.parsed.y.toLocaleString();
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toLocaleString();
+                                }
                                 return label;
                             }
                         }
@@ -531,8 +366,12 @@
             function renderProblemChart() {
                 const ctx = document.getElementById('problemChart');
                 if (!ctx) return;
+
                 const existingChart = Chart.getChart(ctx);
-                if (existingChart) existingChart.destroy();
+                if (existingChart) {
+                    existingChart.destroy();
+                }
+
                 new Chart(ctx.getContext('2d'), {
                     type: 'bar',
                     data: chartData,
@@ -540,163 +379,94 @@
                 });
             }
 
-            /* --- NAVIGATION LOGIC --- */
-            const navLinks = document.querySelectorAll('.nav-link');
-            const mobileNav = document.getElementById('mobile-nav');
+            function setupNavigation() {
+                const navLinks = document.querySelectorAll('.nav-link');
+                const mobileNav = document.getElementById('mobile-nav');
 
-            function showPage(pageId) {
-                document.querySelectorAll('.page-content').forEach(page => page.classList.add('hidden'));
-                const activePage = document.getElementById(pageId);
-                if (activePage) activePage.classList.remove('hidden');
+                function showPage(pageId) {
+                    document.querySelectorAll('.page-content').forEach(page => {
+                        page.classList.add('hidden');
+                    });
+                    const activePage = document.getElementById(pageId);
+                    if (activePage) {
+                        activePage.classList.remove('hidden');
+                    }
 
-                if (pageId === 'page-problem') renderProblemChart();
-                
-                navLinks.forEach(link => {
-                    if (link.dataset.page === pageId) link.classList.add('active');
-                    else link.classList.remove('active');
-                });
-                
-                if (mobileNav.value !== pageId) mobileNav.value = pageId;
-            }
-
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    showPage(e.currentTarget.dataset.page);
-                });
-            });
-            
-            mobileNav.addEventListener('change', (e) => showPage(e.target.value));
-
-            /* --- PROBLEM PAGE INTERACTIVITY --- */
-            document.querySelectorAll('.audience-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    const targetId = button.dataset.target;
-                    const content = document.getElementById(targetId).innerHTML;
-                    const display = document.getElementById('audience-display');
-                    display.innerHTML = content;
-                    display.classList.remove('bg-slate-50');
-                    display.classList.add('bg-white', 'shadow-sm', 'border-l-4', targetId === 'audience-rural' ? 'border-amber-500' : 'border-teal-500');
-                });
-            });
-
-            /* --- SOLUTION PAGE INTERACTIVITY --- */
-            document.querySelectorAll('.solution-nav-link').forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const targetId = e.currentTarget.dataset.target;
-                    document.querySelectorAll('.solution-content').forEach(c => c.classList.add('hidden'));
-                    document.getElementById(targetId).classList.remove('hidden');
-                    document.querySelectorAll('.solution-nav-link').forEach(l => l.classList.remove('active'));
-                    e.currentTarget.classList.add('active');
-                });
-            });
-
-            /* --- AI DEMO INTERACTIVITY --- */
-            // 1. Chatbot Logic
-            const chatInput = document.getElementById('chat-input');
-            const sendBtn = document.getElementById('send-chat');
-            const chatMessages = document.getElementById('chat-messages');
-            const clearChatBtn = document.getElementById('clear-chat');
-
-            const assistantSystemPrompt = "You are Africare, a helpful, empathetic, and culturally aware medical AI assistant designed for rural African communities. Your goal is to provide simple, clear, and easy-to-understand health advice in plain English. You are NOT a doctor. Always recommend visiting a clinic or seeing a professional for serious issues, diagnosis, or prescriptions. Keep your responses concise (under 3 sentences usually) and supportive. If asked about local languages, you can mention you understand Twi or Swahili but answer in English for this demo.";
-
-            function appendMessage(text, isUser) {
-                const div = document.createElement('div');
-                div.className = `chat-bubble ${isUser ? 'chat-user' : 'chat-ai'} shadow-sm`;
-                div.innerHTML = `<p>${text}</p>`;
-                chatMessages.appendChild(div);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            function showTypingIndicator() {
-                const div = document.createElement('div');
-                div.id = 'typing-indicator';
-                div.className = 'chat-bubble chat-ai';
-                div.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-                chatMessages.appendChild(div);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            function removeTypingIndicator() {
-                const indicator = document.getElementById('typing-indicator');
-                if (indicator) indicator.remove();
-            }
-
-            async function handleChat() {
-                const text = chatInput.value.trim();
-                if (!text) return;
-                
-                chatInput.value = '';
-                appendMessage(text, true);
-                showTypingIndicator();
-
-                const response = await callGemini(text, assistantSystemPrompt);
-                
-                removeTypingIndicator();
-                appendMessage(response, false);
-            }
-
-            sendBtn.addEventListener('click', handleChat);
-            chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleChat(); });
-            clearChatBtn.addEventListener('click', () => {
-                chatMessages.innerHTML = `
-                    <div class="chat-bubble chat-ai shadow-sm">
-                        <p>Hello! I am the Africare assistant. I can help you with basic health information in simple language. How are you feeling today?</p>
-                        <p class="text-xs text-slate-400 mt-2"><em>Note: I am an AI, not a doctor.</em></p>
-                    </div>`;
-            });
-
-            // 2. Myth Buster Logic
-            const mythInput = document.getElementById('myth-input');
-            const verifyBtn = document.getElementById('verify-myth');
-            const mythResult = document.getElementById('myth-result');
-
-            const mythSystemPrompt = "You are a medical fact-checker for the 'Africare' platform. Your job is to analyze health statements/rumors and determine if they are likely FACT, MYTH, or MISLEADING. Provide a very brief (1-2 sentences) explanation suitable for a general audience with low health literacy. Output format: Start with the verdict in bold (e.g., **MYTH**), then the explanation.";
-
-            verifyBtn.addEventListener('click', async () => {
-                const text = mythInput.value.trim();
-                if (!text) return;
-
-                verifyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
-                verifyBtn.disabled = true;
-                mythResult.classList.add('hidden');
-
-                const response = await callGemini(text, mythSystemPrompt);
-
-                verifyBtn.innerHTML = '<span>Verify Statement</span><i class="fa-solid fa-magnifying-glass"></i>';
-                verifyBtn.disabled = false;
-                
-                let borderColor = 'border-slate-300';
-                let bgColor = 'bg-slate-50';
-                let icon = 'fa-circle-info';
-
-                if (response.includes('MYTH') || response.includes('False')) {
-                    borderColor = 'border-red-500';
-                    bgColor = 'bg-red-50';
-                    icon = 'fa-circle-xmark text-red-500';
-                } else if (response.includes('FACT') || response.includes('True')) {
-                    borderColor = 'border-green-500';
-                    bgColor = 'bg-green-50';
-                    icon = 'fa-circle-check text-green-500';
-                } else if (response.includes('MISLEADING')) {
-                    borderColor = 'border-amber-500';
-                    bgColor = 'bg-amber-50';
-                    icon = 'fa-triangle-exclamation text-amber-500';
+                    if (pageId === 'page-problem') {
+                        renderProblemChart();
+                    }
+                    
+                    navLinks.forEach(link => {
+                        if (link.dataset.page === pageId) {
+                            link.classList.add('active');
+                        } else {
+                            link.classList.remove('active');
+                        }
+                    });
+                    
+                    if (mobileNav.value !== pageId) {
+                        mobileNav.value = pageId;
+                    }
                 }
 
-                mythResult.className = `mt-6 p-4 rounded-lg border-l-4 ${borderColor} ${bgColor} shadow-sm`;
-                mythResult.innerHTML = `
-                    <div class="flex items-start">
-                        <div class="mr-3 mt-1"><i class="fa-solid ${icon} text-xl"></i></div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 mb-1">Analysis Result:</h4>
-                            <p class="text-slate-700 text-sm">${response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>
-                        </div>
-                    </div>
-                `;
-                mythResult.classList.remove('hidden');
-            });
+                navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const pageId = e.currentTarget.dataset.page;
+                        showPage(pageId);
+                    });
+                });
+                
+                mobileNav.addEventListener('change', (e) => {
+                    showPage(e.target.value);
+                });
+            }
+            
+            function setupProblemInteractivity() {
+                const audienceDisplay = document.getElementById('audience-display');
+                const audienceButtons = document.querySelectorAll('.audience-btn');
+                
+                audienceButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const targetId = button.dataset.target;
+                        const targetContent = document.getElementById(targetId);
+                        if (targetContent) {
+                            audienceDisplay.innerHTML = targetContent.innerHTML;
+                        }
+                    });
+                });
+            }
+            
+            function setupSolutionInteractivity() {
+                const solutionLinks = document.querySelectorAll('.solution-nav-link');
+                
+                solutionLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const targetId = e.currentTarget.dataset.target;
+
+                        document.querySelectorAll('.solution-content').forEach(content => {
+                            content.classList.add('hidden');
+                        });
+                        
+                        const activeContent = document.getElementById(targetId);
+                        if (activeContent) {
+                            activeContent.classList.remove('hidden');
+                        }
+
+                        solutionLinks.forEach(l => l.classList.remove('active'));
+                        e.currentTarget.classList.add('active');
+                    });
+                });
+            }
+
+            function init() {
+                setupNavigation();
+                setupProblemInteractivity();
+                setupSolutionInteractivity();
+            }
+
+            init();
         });
     </script>
 </body>
